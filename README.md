@@ -1,3 +1,6 @@
+## 🔬 Note
+> This repository contains the codebase used to reproduce the results from our [ICML 2025 submission](https://openreview.net/forum?id=4aXfSLfM0Z): **"Compositional Flows for 3D Molecule and Synthesis Pathway Co-design."**  For production-ready code or commercial use, please contact the authors directly or refer to most recent version.
+
 # Compositional Flows for 3D Molecule and Synthesis Path Co-design
 
 We introduce Compositional Generative Flows (CGFlow), a novel framework that extends flow matching to generate objects in compositional steps while modeling continuous states. We apply CGFlow to synthesizable drug design by jointly designing the molecule’s synthetic pathway with its 3D binding pose.
@@ -47,4 +50,14 @@ wandb sweep sweep/redock.yaml
 wandb agent {sweep-id}
 ```
 
-We also include the Synflownet repo used for baseline in the supplementary file.
+## 📖 Citation
+If you use this work, please cite:
+
+```bibtex
+@inproceedings{shen2025compositional,
+  title     = {Compositional Flows for 3D Molecule and Synthesis Pathway Co-design},
+  author    = {Tony Shen and Seonghwan Seo and Ross Irwin and Kieran Didi and Simon Olsson and Woo Youn Kim and Martin Ester},
+  booktitle = {Proceedings of the 42nd International Conference on Machine Learning (ICML)},
+  year      = {2025},
+  url       = {https://openreview.net/forum?id=4aXfSLfM0Z}
+}
