@@ -1,0 +1,39 @@
+project: "cgflow-litpcba"
+program: ./scripts/exp1_litpcba_moo.py
+name: "cgflow-redocking"
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - redocking # prefix
+  - ./logs/exp1-redock/ # storage
+  - ../data/envs/catalog # env dir
+  - ../data/experiments/LIT-PCBA # pocket dir
+  - ../weights/crossdocked_mini_epoch97.ckpt # ckpt
+
+method: grid
+parameters:
+  protein:
+    values:
+      - ADRB2
+      - ALDH1
+      - ESR_ago
+      - ESR_antago
+      - FEN1
+      - GBA
+      - IDH1
+      - KAT2A
+      - MAPK1
+      - MTORC1
+      - OPRK1
+      - PKM2
+      - PPARG
+      - TP53
+      - VDR
+  seed:
+    values: [0, 1, 2, 3]
+  redocking:
+    value: True
+  num_inference_steps:
+    value: 80

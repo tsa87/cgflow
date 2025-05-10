@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cgflow"
+authors = [
+  {name = "XXX", email = "XXX"},
+]
+version = "0.0.1"
+readme = "README.md"
+classifiers = ["Operating System :: OS Independent", "Programming Language :: Python", "Programming Language :: Python :: 3"]
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  # torch, torch-geometric
+  "numpy==1.26.4",
+  "torch>=2.2.1,<=2.5.1",
+  "torch-geometric>=2.4.0",
+  "torch-scatter>=2.1.2",
+  "torch-sparse>=0.6.18",
+  "torch-cluster>=1.6.3",
+  # rxnflow
+  "tensorboard",
+  "gitpython",
+  "botorch",
+  # semlaflow training
+  "lightning>=2.2.1",
+  "torchmetrics",
+  "lmdb",
+  # cheminfo&bioinfo
+  "biotite==1.0.1",
+  "biopython",
+  "openbabel-wheel==3.1.1.20",
+  "rdkit>=2023.9.4",
+  # additional
+  "typing_extensions", # is it really required?
+  "wandb",
+  "tqdm",
+  "omegaconf",
+  "pandas>=2.2.2",
+  "ruff>=0.8.4",
+  "unidock_tools @ git+https://github.com/dptech-corp/Uni-Dock.git@1.1.2#subdirectory=unidock_tools",
+  "meeko",
+]
+
+[project.optional-dependencies]
+extra = [
+  "matplotlib",
+  "jupyter",
+  "ipykernel",
+  "py3Dmol",
+  "posecheck @ git+https://github.com/cch1999/posecheck.git",
+  "prolif==2.0.3",
+  "MDAnalysis==2.7.0"
+]
