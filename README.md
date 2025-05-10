@@ -50,6 +50,9 @@ wandb sweep sweep/redock.yaml
 wandb agent {sweep-id}
 ```
 
+## 📄 License
+This project is licensed under the [MIT License](./LICENSE). 
+
 ## 📖 Citation
 If you use this work, please cite:
 
