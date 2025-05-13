@@ -106,6 +106,8 @@ wandb sweep sweep/redock.yaml
 wandb agent <sweep-id>
 ```
 
+![LIT-PCBA results](assets/lit-pcba-results.png)
+
 ### 3. Pocket-conditional Generation
 
 #### A. Download CrossDocked Dataset
