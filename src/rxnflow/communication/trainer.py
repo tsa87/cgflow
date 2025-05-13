@@ -1,19 +1,17 @@
 import time
 from pathlib import Path
-import pandas as pd
-import numpy as np
-import torch
-import torch.nn as nn
-from torch import Tensor
-from rdkit import Chem
-
-from collections.abc import Callable
 from typing import Any
 
+import numpy as np
+import pandas as pd
+import torch
+from rdkit import Chem
+from torch import Tensor
+
 from gflownet import ObjectProperties
-from rxnflow.config import Config
 from rxnflow.base.task import BaseTask
 from rxnflow.base.trainer import RxnFlowTrainer
+from rxnflow.config import Config
 
 __all__ = [
     "CommunicationTask",
@@ -31,8 +29,8 @@ class CommunicationTask(BaseTask):
     I am not very good at English, so I request an appropriate name for this class.
     """
 
-    def __init__(self, cfg: Config, wrap_model: Callable[[nn.Module], nn.Module]):
-        super().__init__(cfg, wrap_model)
+    def __init__(self, cfg: Config):
+        super().__init__(cfg)
         log_dir = Path(cfg.log_dir)
         self.tick: float = 0.1  # tick for wait
 
@@ -134,14 +132,14 @@ class CommunicationTrainer(RxnFlowTrainer):
         self.num_workers = 0
 
     def setup_task(self):
-        self.task = CommunicationTask(cfg=self.cfg, wrap_model=self._wrap_for_mp)
+        self.task = CommunicationTask(cfg=self.cfg)
 
 
 class MolCommunicationTrainer(CommunicationTrainer):
     def setup_task(self):
-        self.task = MolCommunicationTask(cfg=self.cfg, wrap_model=self._wrap_for_mp)
+        self.task = MolCommunicationTask(cfg=self.cfg)
 
 
 class SeqCommunicationTrainer(CommunicationTrainer):
     def setup_task(self):
-        self.task = SeqCommunicationTask(cfg=self.cfg, wrap_model=self._wrap_for_mp)
+        self.task = SeqCommunicationTask(cfg=self.cfg)

@@ -4,17 +4,16 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch_geometric.data as gd
-
+from rdkit.Chem import BondType, ChiralType, Crippen, rdMolDescriptors
+from rdkit.Chem import Mol as RDMol
 from torch import Tensor
-from rdkit.Chem import BondType, ChiralType, Mol as RDMol
-from rdkit.Chem import Crippen, rdMolDescriptors
 
-from gflownet.envs.graph_building_env import GraphBuildingEnvContext, ActionIndex
+from gflownet.envs.graph_building_env import ActionIndex, GraphBuildingEnvContext
 from rxnflow.envs.action import Protocol
-from .building_block import BLOCK_FP_DIM, BLOCK_PROPERTY_DIM
-from .action import RxnAction, RxnActionType
-from .env import MolGraph, SynthesisEnv
 
+from .action import RxnAction, RxnActionType
+from .building_block import BLOCK_FP_DIM, BLOCK_PROPERTY_DIM
+from .env import MolGraph, SynthesisEnv
 
 DEFAULT_ATOMS = ["*", "B", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"]
 DEFAULT_ATOM_CHARGE_RANGE = [-1, 0, 1]
@@ -54,7 +53,7 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
         # NOTE: Setup Building Block Datas
         self.block_features: dict[str, tuple[Tensor, Tensor]] = env.block_features
         self.block_fp_dim: int = BLOCK_FP_DIM
-        self.block_desc_dim: int = BLOCK_PROPERTY_DIM
+        self.block_prop_dim: int = BLOCK_PROPERTY_DIM
 
         # NOTE: Setup State Molecular Type
         self.state_types = [protocol.state_type for protocol in self.birxn_list]
@@ -77,7 +76,7 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
         self.bond_attr_slice = [0] + list(np.cumsum([len(self.bond_attr_values[i]) for i in self.bond_attrs]))
         self.num_node_dim = sum(len(v) for v in self.atom_attr_values.values())
         self.num_edge_dim = sum(len(v) for v in self.bond_attr_values.values())
-        self.num_graph_dim = 8  # mw, tpsa, numhbd, numhba, mollogp, rotbonds, numrings
+        self.num_graph_dim = 9  # mw, numatoms, tpsa, numhbd, numhba, mollogp, rotbonds, numrings
 
         # NOTE: For Condition
         self.num_cond_dim = num_cond_dim
@@ -99,7 +98,7 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
         self,
         block_type: str,
         block_indices: torch.Tensor | int,
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """Get the block features for the given type and indices
 
         Parameters
@@ -115,7 +114,6 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
             typ: index tensor for given block type
             descs: molecular feature of blocks
             fp: molecular fingerprints of blocks
-            level: block level for action masking
         """
         desc, fp = self.block_features[block_type]
         desc, fp = desc[block_indices], fp[block_indices]
@@ -123,9 +121,7 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
             desc, fp = desc.view(1, -1), fp.view(1, -1)
         type_idx = self.block_type_to_idx[block_type]  # NOTE: it is different to block_type_idx in aidx
         typ = torch.full((fp.shape[0],), type_idx, dtype=torch.long)
-        # TODO: add level
-        level = torch.zeros((fp.shape[0], 1), dtype=torch.float32)
-        return typ, desc, fp.to(torch.float32), level
+        return typ, desc, fp
 
     def ActionIndex_to_GraphAction(self, g: gd.Data, aidx: ActionIndex, fwd: bool = True) -> RxnAction:
         protocol_idx, block_type_idx, block_idx = aidx
@@ -170,7 +166,6 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
             edge_attr = torch.zeros((0, self.num_edge_dim))
             edge_index = torch.zeros((2, 0), dtype=torch.long)
             graph_attr = torch.zeros((self.num_graph_dim,))
-            level = torch.zeros((1,))
         else:
             x = torch.zeros((len(g.nodes), self.num_node_dim))
             for i, n in enumerate(g.nodes):
@@ -191,27 +186,26 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
                     edge_attr[i * 2 + 1, sl + idx] = 1
             edge_index = torch.tensor([e for i, j in g.edges for e in [(i, j), (j, i)]], dtype=torch.long).view(-1, 2).T
             # Add molecular properties (multi-modality)
-            graph_attr = self.get_obj_features(self.graph_to_obj(g))
-            # TODO: add level
-            level = torch.zeros((1,))
+            mol = self.graph_to_obj(g)
+            graph_attr = self.get_obj_features(mol)
         return dict(
             x=x,
             edge_index=edge_index,
             edge_attr=edge_attr,
             graph_attr=graph_attr.reshape(1, -1),
             protocol_mask=self.create_masks(g).reshape(1, -1),
-            level=level.reshape(1, -1),
         )
 
     def get_obj_features(self, obj: RDMol) -> Tensor:
         descs = [
-            rdMolDescriptors.CalcExactMolWt(obj) / 500,
-            rdMolDescriptors.CalcTPSA(obj) / 100,
+            rdMolDescriptors.CalcExactMolWt(obj) / 100,
+            rdMolDescriptors.CalcNumHeavyAtoms(obj) / 10,
             rdMolDescriptors.CalcNumHBA(obj) / 10,
             rdMolDescriptors.CalcNumHBD(obj) / 10,
             rdMolDescriptors.CalcNumRotatableBonds(obj) / 10,
-            rdMolDescriptors.CalcNumAliphaticRings(obj) / 10,
             rdMolDescriptors.CalcNumAromaticRings(obj) / 10,
+            rdMolDescriptors.CalcNumAliphaticRings(obj) / 10,
+            rdMolDescriptors.CalcTPSA(obj) / 100,
             Crippen.MolLogP(obj) / 10,
         ]
         return torch.tensor(descs, dtype=torch.float32)
@@ -283,6 +277,17 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
 
     def graph_to_obj(self, g: MolGraph) -> RDMol:
         """Convert a Graph to an RDKit Mol"""
+        for k, v in g.graph.items():
+            if g.mol.HasProp(k):
+                continue
+            elif isinstance(v, str):
+                g.mol.SetProp(k, v)
+            elif isinstance(v, int):
+                g.mol.SetIntProp(k, v)
+            elif isinstance(v, float):
+                g.mol.SetDoubleProp(k, v)
+            elif isinstance(v, bool):
+                g.mol.SetBoolProp(k, v)
         return g.mol
 
     def object_to_log_repr(self, g: MolGraph) -> str:

@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, List, Sequence
+from typing import Any
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
@@ -59,7 +60,7 @@ class SeqBuildingEnv(GraphBuildingEnv):
 
 
 class SeqBatch:
-    def __init__(self, seqs: List[torch.Tensor], pad: int):
+    def __init__(self, seqs: list[torch.Tensor], pad: int):
         self.seqs = seqs
         self.x = pad_sequence(seqs, batch_first=False, padding_value=pad)
         self.mask = self.x.eq(pad).T
@@ -119,7 +120,7 @@ class AutoregressiveSeqBuildingContext(GraphBuildingEnvContext):
         s: Seq = g  # type: ignore
         return torch.tensor([self.bos_token] + s.seq, dtype=torch.long)
 
-    def collate(self, graphs: List[Data]):
+    def collate(self, graphs: list[Data]):
         return SeqBatch(graphs, pad=self.pad_token)
 
     def is_sane(self, g: Graph) -> bool:

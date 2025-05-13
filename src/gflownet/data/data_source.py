@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Generator, List, Optional
+from collections.abc import Callable, Generator
 
 import numpy as np
 import torch
@@ -25,19 +25,19 @@ class DataSource(IterableDataset):
         ctx: GraphBuildingEnvContext,
         algo: GFNAlgorithm,
         task: GFNTask,
-        replay_buffer: Optional[ReplayBuffer] = None,
+        replay_buffer: ReplayBuffer | None = None,
         is_algo_eval: bool = False,
         start_at_step: int = 0,
     ):
         """A DataSource mixes multiple iterators into one. These are created with do_* methods."""
-        self.iterators: List[Generator] = []
+        self.iterators: list[Generator] = []
         self.cfg = cfg
         self.ctx = ctx
         self.algo = algo
         self.task = task
         self.replay_buffer = replay_buffer
         self.is_algo_eval = is_algo_eval
-        self.sampling_hooks: List[Callable] = []
+        self.sampling_hooks: list[Callable] = []
         self.active = True
 
         self.global_step_count = torch.zeros(1, dtype=torch.int64) + start_at_step
@@ -71,7 +71,7 @@ class DataSource(IterableDataset):
                     iterator_outputs = [i for i in iterator_outputs if i is not None]
                 else:
                     break
-            traj_lists, batch_infos = zip(*iterator_outputs)
+            traj_lists, batch_infos = zip(*iterator_outputs, strict=False)
             trajs = sum(traj_lists, [])
             # Merge all the dicts into one
             batch_info = {}
@@ -151,7 +151,7 @@ class DataSource(IterableDataset):
                 t = self.current_iter
                 p = self.algo.get_random_action_prob(t)
                 cond_info = self.task.sample_conditional_information(num_samples, t)
-                objs, props = map(list, zip(*[data[i] for i in idcs])) if len(idcs) else ([], [])
+                objs, props = map(list, zip(*[data[i] for i in idcs], strict=False)) if len(idcs) else ([], [])
                 trajs = self.algo.create_training_data_from_graphs(objs, backwards_model, cond_info["encoding"], p)
                 self.set_traj_cond_info(trajs, cond_info)  # Attach the cond info to the trajs
                 self.set_traj_props(trajs, props)
@@ -176,7 +176,7 @@ class DataSource(IterableDataset):
                 self.compute_log_rewards(trajs)
                 self.send_to_replay(trajs)  # This is a no-op if there is no replay buffer
                 # If we're using a dataset of preferences, the user/hooks may want to know the id of the preference
-                for i, j in zip(trajs, idcs):
+                for i, j in zip(trajs, idcs, strict=False):
                     i["data_idx"] = j
                 batch_info = self.call_sampling_hooks(trajs)
                 yield trajs, batch_info
@@ -191,7 +191,7 @@ class DataSource(IterableDataset):
                 t = self.current_iter
                 p = self.algo.get_random_action_prob(t)
                 cond_info = self.task.sample_conditional_information(num_samples, t)
-                objs, props = map(list, zip(*[data[i] for i in idcs])) if len(idcs) else ([], [])
+                objs, props = map(list, zip(*[data[i] for i in idcs], strict=False)) if len(idcs) else ([], [])
                 trajs = self.algo.create_training_data_from_graphs(objs, backwards_model, cond_info["encoding"], p)
                 self.set_traj_cond_info(trajs, cond_info)  # Attach the cond info to the trajs
                 self.set_traj_props(trajs, props)

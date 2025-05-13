@@ -1,25 +1,32 @@
+from collections.abc import Callable
+
 import torch_geometric.data as gd
-
 from rdkit.Chem import Mol as RDMol
-from torch import Tensor
+from torch import Tensor, nn
 
-from gflownet.utils.misc import get_worker_device
-from rxnflow.config import Config, init_empty
-from rxnflow.base import BaseTask, RxnFlowTrainer
 from gflownet.models import bengio2021flow
+from gflownet.utils.misc import get_worker_device
+from rxnflow.base import BaseTask, RxnFlowTrainer
+from rxnflow.config import Config, init_empty
 
 
 class SEHTask(BaseTask):
+    def __init__(self, cfg: Config, wrap_model: Callable[[nn.Module], nn.Module]):
+        super().__init__(cfg)
+        self._wrap_model = wrap_model
+        self.models = self._load_task_models()
+        assert set(self.objectives) <= {"seh", "qed", "mw", "sa"}
+
     def _load_task_models(self):
         model = bengio2021flow.load_original_model()
         model.to(get_worker_device())
         model = self._wrap_model(model)
         return {"seh": model}
 
-    def compute_rewards(self, objs: list[RDMol]) -> Tensor:
-        graphs = [bengio2021flow.mol2graph(i) for i in objs]
+    def compute_rewards(self, mols: list[RDMol]) -> Tensor:
+        graphs = [bengio2021flow.mol2graph(i) for i in mols]
         preds = self.compute_reward_from_graph(graphs).reshape((-1, 1))
-        assert len(preds) == len(objs)
+        assert len(preds) == len(mols)
         return preds
 
     def compute_reward_from_graph(self, graphs: list[gd.Data]) -> Tensor:

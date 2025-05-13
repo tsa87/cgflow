@@ -4,7 +4,7 @@ import json
 import re
 from collections import defaultdict
 from functools import cached_property
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, NamedTuple
 
 import networkx as nx
 import numpy as np
@@ -115,10 +115,10 @@ class GraphAction:
             the value (e.g. new node type) applied
         """
         self.action: GraphActionType = action
-        self.source: Optional[int] = source
-        self.target: Optional[int] = target
-        self.attr: Optional[str] = attr
-        self.value: Optional[Any] = value
+        self.source: int | None = source
+        self.target: int | None = target
+        self.attr: str | None = attr
+        self.value: Any | None = value
 
     def __repr__(self):
         attrs = ", ".join(str(i) for i in [self.source, self.target, self.attr, self.value] if i is not None)
@@ -249,9 +249,9 @@ class GraphBuildingEnv:
         parents: List[Pair(GraphAction, Graph)]
             The list of parent-action pairs that lead to `g`.
         """
-        parents: List[Tuple[GraphAction, Graph]] = []
+        parents: list[tuple[GraphAction, Graph]] = []
         # Count node degrees
-        degree: Dict[int, int] = defaultdict(int)
+        degree: dict[int, int] = defaultdict(int)
         for a, b in g.edges:
             degree[a] += 1
             degree[b] += 1
@@ -374,15 +374,15 @@ class GraphBuildingEnv:
             raise ValueError(f"Unknown action type {ga.action}", ga.action)
 
 
-def generate_forward_trajectory(g: Graph, max_nodes: int = None) -> List[Tuple[Graph, GraphAction]]:
+def generate_forward_trajectory(g: Graph, max_nodes: int = None) -> list[tuple[Graph, GraphAction]]:
     """Sample (uniformly) a trajectory that generates `g`"""
     # TODO: should this be a method of GraphBuildingEnv? handle set_node_attr flags and so on?
     gn = Graph()
     # Choose an arbitrary starting point, add to the stack
-    stack: List[Tuple[int, ...]] = [(np.random.randint(0, len(g.nodes)),)]
+    stack: list[tuple[int, ...]] = [(np.random.randint(0, len(g.nodes)),)]
     traj = []
     # This map keeps track of node labels in gn, since we have to start from 0
-    relabeling_map: Dict[int, int] = {}
+    relabeling_map: dict[int, int] = {}
     while len(stack):
         # We pop from the stack until all nodes and edges have been
         # generated and their attributes have been set. Uninserted
@@ -470,12 +470,12 @@ class GraphActionCategorical:
     def __init__(
         self,
         graphs: gd.Batch,
-        raw_logits: List[torch.Tensor],
-        keys: List[Union[str, None]],
-        types: List[GraphActionType],
+        raw_logits: list[torch.Tensor],
+        keys: list[str | None],
+        types: list[GraphActionType],
         deduplicate_edge_index=True,
-        action_masks: List[torch.Tensor] = None,
-        slice_dict: Optional[dict[str, torch.Tensor]] = None,
+        action_masks: list[torch.Tensor] = None,
+        slice_dict: dict[str, torch.Tensor] | None = None,
     ):
         """A multi-type Categorical compatible with generating structured actions.
 
@@ -549,7 +549,7 @@ class GraphActionCategorical:
         # (e.g. in a softmax and such)
         # Can be set to indicate which raw_logits are masked out (shape must match raw_logits or have
         # broadcast dimensions already set)
-        self._action_masks: List[Any] = action_masks
+        self._action_masks: list[Any] = action_masks
         self._apply_action_masks()
 
         # I'm extracting batches and slices in a slightly hackish way,
@@ -606,7 +606,7 @@ class GraphActionCategorical:
 
     def _apply_action_masks(self):
         self._masked_logits = (
-            [self._mask(logits, mask) for logits, mask in zip(self.raw_logits, self._action_masks)]
+            [self._mask(logits, mask) for logits, mask in zip(self.raw_logits, self._action_masks, strict=False)]
             if self._action_masks is not None
             else self.raw_logits
         )
@@ -644,7 +644,7 @@ class GraphActionCategorical:
                 sum(
                     [
                         scatter(m.broadcast_to(i.shape).int().sum(1), b, dim=0, dim_size=self.num_graphs, reduce="sum")
-                        for m, i, b in zip(self._action_masks, self._masked_logits, self.batch)
+                        for m, i, b in zip(self._action_masks, self._masked_logits, self.batch, strict=False)
                     ]
                 )
                 .clamp(1)
@@ -656,9 +656,9 @@ class GraphActionCategorical:
 
     def _compute_batchwise_max(
         self,
-        x: List[torch.Tensor],
+        x: list[torch.Tensor],
         detach: bool = True,
-        batch: Optional[List[torch.Tensor]] = None,
+        batch: list[torch.Tensor] | None = None,
         reduce_columns: bool = True,
     ):
         """Compute the maximum value of each batch element in `x`
@@ -691,7 +691,7 @@ class GraphActionCategorical:
         # max of that type, since we'd get 0.
         min_val = torch.finfo().min
         outs = [torch.zeros(self.num_graphs, i.shape[1], device=self.dev) + min_val for i in x]
-        maxl = [scatter_max(i, b, dim=0, out=out) for i, b, out in zip(x, batch, outs)]
+        maxl = [scatter_max(i, b, dim=0, out=out) for i, b, out in zip(x, batch, outs, strict=False)]
         if reduce_columns:
             return torch.cat([values for values, indices in maxl], dim=1).max(1)
         return maxl
@@ -704,17 +704,17 @@ class GraphActionCategorical:
         maxl = self._compute_batchwise_max(self._masked_logits).values
         # substract by max then take exp
         # x[b, None] indexes by the batch to map back to each node/edge and adds a broadcast dim
-        corr_logits = [(i - maxl[b, None]) for i, b in zip(self._masked_logits, self.batch)]
-        exp_logits = [i.exp().clamp(self._epsilon) for i, b in zip(corr_logits, self.batch)]
+        corr_logits = [(i - maxl[b, None]) for i, b in zip(self._masked_logits, self.batch, strict=False)]
+        exp_logits = [i.exp().clamp(self._epsilon) for i, b in zip(corr_logits, self.batch, strict=False)]
         # sum corrected exponentiated logits, to get log(Z') = log(Z - max) = log(sum(exp(logits - max)))
         logZ = sum(
             [
                 scatter(i, b, dim=0, dim_size=self.num_graphs, reduce="sum").sum(1)
-                for i, b in zip(exp_logits, self.batch)
+                for i, b in zip(exp_logits, self.batch, strict=False)
             ]
         ).log()
         # log probabilities is log(exp(logit) / Z) = (logit - max) - log(Z')
-        self.logprobs = [i - logZ[b, None] for i, b in zip(corr_logits, self.batch)]
+        self.logprobs = [i - logZ[b, None] for i, b in zip(corr_logits, self.batch, strict=False)]
         return self.logprobs
 
     def logsumexp(self, x=None):
@@ -725,15 +725,15 @@ class GraphActionCategorical:
         maxl = self._compute_batchwise_max(x).values
         # substract by max then take exp
         # x[b, None] indexes by the batch to map back to each node/edge and adds a broadcast dim
-        exp_vals = [(i - maxl[b, None]).exp().clamp(self._epsilon) for i, b in zip(x, self.batch)]
+        exp_vals = [(i - maxl[b, None]).exp().clamp(self._epsilon) for i, b in zip(x, self.batch, strict=False)]
         # sum corrected exponentiated _masked_logits, to get log(Z - max) = log(sum(exp(_masked_logits)) - max)
         reduction = sum(
-            [scatter(i, b, dim=0, dim_size=self.num_graphs, reduce="sum").sum(1) for i, b in zip(exp_vals, self.batch)]
+            [scatter(i, b, dim=0, dim_size=self.num_graphs, reduce="sum").sum(1) for i, b in zip(exp_vals, self.batch, strict=False)]
         ).log()
         # Add back max
         return reduction + maxl
 
-    def sample(self) -> List[ActionIndex]:
+    def sample(self) -> list[ActionIndex]:
         """Samples this categorical
         Returns
         -------
@@ -751,16 +751,16 @@ class GraphActionCategorical:
         # Uniform noise
         u = [torch.rand(i.shape, device=self.dev) for i in self._masked_logits]
         # Gumbel noise
-        gumbel = [logit - (-noise.log()).log() for logit, noise in zip(self._masked_logits, u)]
+        gumbel = [logit - (-noise.log()).log() for logit, noise in zip(self._masked_logits, u, strict=False)]
         # Take the argmax
         return self.argmax(x=gumbel)
 
     def argmax(
         self,
-        x: List[torch.Tensor],
-        batch: List[torch.Tensor] = None,
+        x: list[torch.Tensor],
+        batch: list[torch.Tensor] = None,
         dim_size: int = None,
-    ) -> List[ActionIndex]:
+    ) -> list[ActionIndex]:
         """Takes the argmax, i.e. if x are the logits, returns the most likely action.
 
         Parameters
@@ -790,7 +790,7 @@ class GraphActionCategorical:
         # so we get (minibatch_size,)
         col_max = [values.max(1) for values, idx in mnb_max]
         # Now we look up which row in those argmax cols was the max:
-        row_pos = [idx_mnb[torch.arange(len(idx_col)), idx_col] for (_, idx_mnb), (_, idx_col) in zip(mnb_max, col_max)]
+        row_pos = [idx_mnb[torch.arange(len(idx_col)), idx_col] for (_, idx_mnb), (_, idx_col) in zip(mnb_max, col_max, strict=False)]
         # The maxes themselves
         maxs = [values for values, idx in col_max]
         # Now we need to check which type of logit has the actual max
@@ -815,7 +815,7 @@ class GraphActionCategorical:
         # if it wants to convert these indices to env-compatible actions
         return argmaxes
 
-    def log_prob(self, actions: List[ActionIndex], logprobs: torch.Tensor = None, batch: torch.Tensor = None):
+    def log_prob(self, actions: list[ActionIndex], logprobs: torch.Tensor = None, batch: torch.Tensor = None):
         """The log-probability of a list of action tuples, effectively indexes `logprobs` using internal
         slice indices.
 
@@ -890,7 +890,7 @@ class GraphActionCategorical:
         entropy = -sum(
             [
                 scatter(i * i.exp(), b, dim=0, dim_size=self.num_graphs, reduce="sum").sum(1)
-                for i, b in zip(logprobs, self.batch)
+                for i, b in zip(logprobs, self.batch, strict=False)
             ]
         )
         return entropy
@@ -900,8 +900,8 @@ class GraphBuildingEnvContext:
     """A context class defines what the graphs are, how they map to and from data"""
 
     device: torch.device
-    action_type_order: List[GraphActionType]
-    bck_action_type_order: List[GraphActionType]
+    action_type_order: list[GraphActionType]
+    bck_action_type_order: list[GraphActionType]
 
     def ActionIndex_to_GraphAction(self, g: gd.Data, aidx: ActionIndex, fwd: bool = True) -> GraphAction:
         """Translate an action index (e.g. from a GraphActionCategorical) to a GraphAction
@@ -953,7 +953,7 @@ class GraphBuildingEnvContext:
         """
         raise NotImplementedError()
 
-    def collate(self, graphs: List[gd.Data]) -> gd.Batch:
+    def collate(self, graphs: list[gd.Data]) -> gd.Batch:
         """Convert a list of torch geometric Data instances to a Batch
         instance.  This exists so that environment contexts can set
         custom batching attributes, e.g. by using `follow_batch`.

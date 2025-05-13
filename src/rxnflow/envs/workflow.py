@@ -1,7 +1,9 @@
 from pathlib import Path
+
 from omegaconf import OmegaConf
-from .action import RxnActionType, Protocol
-from .reaction import BiRxnReaction, BckBiRxnReaction
+
+from .action import Protocol, RxnActionType
+from .reaction import BckBiRxnReaction, BiRxnReaction
 
 
 class Workflow:

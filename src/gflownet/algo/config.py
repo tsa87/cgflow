@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional
 
 from gflownet.utils.misc import StrictDataClass
 
@@ -95,7 +94,7 @@ class TBConfig(StrictDataClass):
     """
 
     bootstrap_own_reward: bool = False
-    epsilon: Optional[float] = None
+    epsilon: float | None = None
     reward_loss_multiplier: float = 1.0
     variant: TBVariant = TBVariant.TB
     do_correct_idempotent: bool = False
@@ -193,7 +192,7 @@ class AlgoConfig(StrictDataClass):
     max_edges: int = 128
     illegal_action_logreward: float = -100
     train_random_action_prob: float = 0.0
-    train_det_after: Optional[int] = None
+    train_det_after: int | None = None
     valid_random_action_prob: float = 0.0
     sampling_tau: float = 0.0
     tb: TBConfig = field(default_factory=TBConfig)

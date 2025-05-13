@@ -505,7 +505,7 @@ class HSR_Calculator:
         return hsr_indicator, hsr_invest
 
 
-class Normalizer(object):
+class Normalizer:
     def __init__(self, loc=0.0, scale=1.0):
         self.loc = loc
         self.scale = np.where(scale != 0, scale, 1.0)

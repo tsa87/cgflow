@@ -1,6 +1,5 @@
 from collections import defaultdict
 from math import log
-from typing import List, Tuple
 
 import networkx as nx
 import numpy as np
@@ -24,7 +23,7 @@ class FragMolBuildingEnvContext(GraphBuildingEnvContext):
     fragments. Masks ensure that the agent can only perform chemically valid attachments.
     """
 
-    def __init__(self, max_frags: int = 9, num_cond_dim: int = 0, fragments: List[Tuple[str, List[int]]] = None):
+    def __init__(self, max_frags: int = 9, num_cond_dim: int = 0, fragments: list[tuple[str, list[int]]] = None):
         """Construct a fragment environment
         Parameters
         ----------
@@ -38,9 +37,9 @@ class FragMolBuildingEnvContext(GraphBuildingEnvContext):
         """
         self.max_frags = max_frags
         if fragments is None:
-            smi, stems = zip(*bengio2021flow.FRAGMENTS)
+            smi, stems = zip(*bengio2021flow.FRAGMENTS, strict=False)
         else:
-            smi, stems = zip(*fragments)
+            smi, stems = zip(*fragments, strict=False)
         self.frags_smi = smi
         self.frags_mol = [Chem.MolFromSmiles(i) for i in self.frags_smi]
         self.frags_stems = stems
@@ -291,7 +290,7 @@ class FragMolBuildingEnvContext(GraphBuildingEnvContext):
         g._Data_cache = data
         return data
 
-    def collate(self, graphs: List[gd.Data]) -> gd.Batch:
+    def collate(self, graphs: list[gd.Data]) -> gd.Batch:
         """Batch Data instances
         Parameters
         ----------

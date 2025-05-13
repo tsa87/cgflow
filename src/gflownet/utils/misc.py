@@ -12,7 +12,7 @@ def create_logger(name="logger", loglevel=logging.INFO, logfile=None, streamHand
     while len([logger.removeHandler(i) for i in logger.handlers]):
         pass  # Remove all handlers (only useful when debugging)
     formatter = logging.Formatter(
-        fmt="%(asctime)s - %(levelname)s - {} - %(message)s".format(name),
+        fmt=f"%(asctime)s - %(levelname)s - {name} - %(message)s",
         datefmt="%d/%m/%Y %H:%M:%S",
     )
 

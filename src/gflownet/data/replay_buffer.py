@@ -1,4 +1,3 @@
-from typing import List
 
 import numpy as np
 import torch
@@ -7,7 +6,7 @@ from gflownet.config import Config
 from gflownet.utils.misc import get_worker_rng
 
 
-class ReplayBuffer(object):
+class ReplayBuffer:
     def __init__(self, cfg: Config):
         """
         Replay buffer for storing and sampling arbitrary data (e.g. transitions or trajectories)
@@ -17,7 +16,7 @@ class ReplayBuffer(object):
         self.warmup = cfg.replay.warmup
         assert self.warmup <= self.capacity, "ReplayBuffer warmup must be smaller than capacity"
 
-        self.buffer: List[tuple] = []
+        self.buffer: list[tuple] = []
         self.position = 0
 
     def push(self, *args):
@@ -33,7 +32,7 @@ class ReplayBuffer(object):
 
     def sample(self, batch_size):
         idxs = get_worker_rng().choice(len(self.buffer), batch_size)
-        out = list(zip(*[self.buffer[idx] for idx in idxs]))
+        out = list(zip(*[self.buffer[idx] for idx in idxs], strict=False))
         for i in range(len(out)):
             # stack if all elements are numpy arrays or torch tensors
             # (this is much more efficient to send arrays through multiprocessing queues)

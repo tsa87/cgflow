@@ -1,23 +1,22 @@
 import os
 import sys
-import wandb
-from omegaconf import OmegaConf
 
-from cgflow.config import Config, init_empty
-from cgflow.tasks.semla_vina import VinaMOOTrainer_semla
+import wandb
+
+from synthflow.config import Config, init_empty
+from synthflow.tasks.autodock_vina import AutoDockVina_MOGFNTrainer
 
 
 def main():
-    prefix = sys.argv[1]
+    group = sys.argv[1]
     storage = sys.argv[2]
     env_dir = sys.argv[3]
     pocket_dir = sys.argv[4]
     ckpt_path = sys.argv[5]
 
-    wandb.init(group=prefix)
+    wandb.init(group=group)
     target = wandb.config["protein"]
     seed = wandb.config["seed"]
-    redocking = wandb.config["redocking"]
     num_inference_steps = wandb.config["num_inference_steps"]
 
     protein_path = os.path.join(pocket_dir, target, "protein.pdb")
@@ -35,19 +34,17 @@ def main():
 
     config.task.docking.protein_path = protein_path
     config.task.docking.ref_ligand_path = ref_ligand_path
-    config.task.docking.redocking = redocking
+    config.task.docking.redocking = False
 
-    config.semlaflow.ckpt_path = ckpt_path
-    config.semlaflow.num_inference_steps = num_inference_steps
+    config.cgflow.ckpt_path = ckpt_path
+    config.cgflow.num_inference_steps = num_inference_steps
 
-    config.log_dir = os.path.join(storage, prefix, target, f"seed-{seed}")
+    config.log_dir = os.path.join(storage, group, target, f"seed-{seed}")
 
     # NOTE: Run
-    prefix = f"{prefix}-{target}"
-    trainer = VinaMOOTrainer_semla(config)
-    wandb.config.update({"prefix": prefix, "config": OmegaConf.to_container(trainer.cfg)})
+    trainer = AutoDockVina_MOGFNTrainer(config)
     trainer.run()
-    wandb.finish()
+    trainer.terminate()
 
 
 if __name__ == "__main__":

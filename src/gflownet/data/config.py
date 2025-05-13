@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from gflownet.utils.misc import StrictDataClass
 
@@ -29,8 +28,8 @@ class ReplayConfig(StrictDataClass):
     """
 
     use: bool = False
-    capacity: Optional[int] = None
-    warmup: Optional[int] = None
+    capacity: int | None = None
+    warmup: int | None = None
     hindsight_ratio: float = 0
-    num_from_replay: Optional[int] = None
-    num_new_samples: Optional[int] = None
+    num_from_replay: int | None = None
+    num_new_samples: int | None = None

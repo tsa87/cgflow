@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from typing import Iterable
+from collections.abc import Iterable
 
 import torch
 
@@ -77,7 +77,7 @@ class SQLiteLog:
 
     def _make_results_table(self, types, names):
         type_map = {str: "text", float: "real", int: "real"}
-        col_str = ", ".join(f"{name} {type_map[t]}" for t, name in zip(types, names))
+        col_str = ", ".join(f"{name} {type_map[t]}" for t, name in zip(types, names, strict=False))
         cur = self.db.cursor()
         cur.execute(f"create table results ({col_str})")
         self._has_results_table = True

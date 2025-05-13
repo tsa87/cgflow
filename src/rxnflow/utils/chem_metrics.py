@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-
 from rdkit import Chem, DataStructs
 from rdkit.Chem import QED, Descriptors
 from rdkit.Chem import Mol as RDMol

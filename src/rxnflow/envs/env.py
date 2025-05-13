@@ -1,14 +1,15 @@
-import torch
 from pathlib import Path
-from rdkit import Chem, RDLogger
 
-from torch import Tensor
+import torch
+from rdkit import Chem, RDLogger
 from rdkit.Chem import Mol as RDMol
+from torch import Tensor
 
 from gflownet.envs.graph_building_env import Graph, GraphBuildingEnv
+
 from .action import RxnAction, RxnActionType
-from .workflow import Workflow, Protocol
 from .retrosynthesis import RetroSyntheticAnalyzer
+from .workflow import Protocol, Workflow
 
 logger = RDLogger.logger()
 RDLogger.DisableLog("rdApp.*")

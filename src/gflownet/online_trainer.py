@@ -129,7 +129,7 @@ class StandardOnlineTrainer(GFNTrainer):
         self.lr_sched.step()
         self.lr_sched_Z.step()
         if self.sampling_tau > 0:
-            for a, b in zip(self.model.parameters(), self.sampling_model.parameters()):
+            for a, b in zip(self.model.parameters(), self.sampling_model.parameters(), strict=False):
                 b.data.mul_(self.sampling_tau).add_(a.data * (1 - self.sampling_tau))
         return {"grad_norm": g0, "grad_norm_clip": g1}
 

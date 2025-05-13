@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import networkx as nx
 import numpy as np
@@ -61,7 +61,7 @@ def subTB(v: torch.Tensor, x: torch.Tensor):
 
 
 class TrajectoryBalanceModel(nn.Module):
-    def forward(self, batch: gd.Batch) -> Tuple[GraphActionCategorical, Tensor]:
+    def forward(self, batch: gd.Batch) -> tuple[GraphActionCategorical, Tensor]:
         raise NotImplementedError()
 
     def logZ(self, cond_info: Tensor) -> Tensor:
@@ -154,8 +154,8 @@ class TrajectoryBalance(GFNAlgorithm):
         self,
         model: TrajectoryBalanceModel,
         n: int,
-        cond_info: Optional[Tensor] = None,
-        random_action_prob: Optional[float] = 0.0,
+        cond_info: Tensor | None = None,
+        random_action_prob: float | None = 0.0,
     ):
         """Generate trajectories by sampling a model
 
@@ -193,9 +193,9 @@ class TrajectoryBalance(GFNAlgorithm):
     def create_training_data_from_graphs(
         self,
         graphs,
-        model: Optional[TrajectoryBalanceModel] = None,
-        cond_info: Optional[Tensor] = None,
-        random_action_prob: Optional[float] = None,
+        model: TrajectoryBalanceModel | None = None,
+        cond_info: Tensor | None = None,
+        random_action_prob: float | None = None,
     ):
         """Generate trajectories from known endpoints
 
@@ -222,7 +222,7 @@ class TrajectoryBalance(GFNAlgorithm):
             return self.graph_sampler.sample_backward_from_graphs(
                 graphs, model if self.cfg.do_parameterize_p_b else None, cond_info, random_action_prob
             )
-        trajs: List[Dict[str, Any]] = [{"traj": generate_forward_trajectory(i)} for i in graphs]
+        trajs: list[dict[str, Any]] = [{"traj": generate_forward_trajectory(i)} for i in graphs]
         for traj in trajs:
             n_back = [
                 self.env.count_backward_transitions(gp, check_idempotent=self.cfg.do_correct_idempotent)
@@ -305,13 +305,13 @@ class TrajectoryBalance(GFNAlgorithm):
         if self.model_is_autoregressive:
             torch_graphs = [self.ctx.graph_to_Data(tj["traj"][-1][0]) for tj in trajs]
             actions = [
-                self.ctx.GraphAction_to_ActionIndex(g, i[1]) for g, tj in zip(torch_graphs, trajs) for i in tj["traj"]
+                self.ctx.GraphAction_to_ActionIndex(g, i[1]) for g, tj in zip(torch_graphs, trajs, strict=False) for i in tj["traj"]
             ]
         else:
             torch_graphs = [self.ctx.graph_to_Data(i[0]) for tj in trajs for i in tj["traj"]]
             actions = [
                 self.ctx.GraphAction_to_ActionIndex(g, a)
-                for g, a in zip(torch_graphs, [i[1] for tj in trajs for i in tj["traj"]])
+                for g, a in zip(torch_graphs, [i[1] for tj in trajs for i in tj["traj"]], strict=False)
             ]
         batch = self.ctx.collate(torch_graphs)
         batch.traj_lens = torch.tensor([len(i["traj"]) for i in trajs])
@@ -321,7 +321,7 @@ class TrajectoryBalance(GFNAlgorithm):
             batch.bck_actions = torch.tensor(
                 [
                     self.ctx.GraphAction_to_ActionIndex(g, a)
-                    for g, a in zip(torch_graphs, [i for tj in trajs for i in tj["bck_a"]])
+                    for g, a in zip(torch_graphs, [i for tj in trajs for i in tj["bck_a"]], strict=False)
                 ]
             )
             batch.is_sink = torch.tensor(sum([i["is_sink"] for i in trajs], []))
@@ -336,7 +336,7 @@ class TrajectoryBalance(GFNAlgorithm):
             gactions = [i[1] for tj in trajs for i in tj["traj"]]
             ipa = [
                 self.get_idempotent_actions(g, gd, gp, a)
-                for g, gd, gp, a in zip(agraphs, torch_graphs, bgraphs, gactions)
+                for g, gd, gp, a in zip(agraphs, torch_graphs, bgraphs, gactions, strict=False)
             ]
             batch.ip_actions = torch.tensor(sum(ipa, []))
             batch.ip_lens = torch.tensor([len(i) for i in ipa])
@@ -346,7 +346,7 @@ class TrajectoryBalance(GFNAlgorithm):
                 gactions = [i for tj in trajs for i in tj["bck_a"]]
                 bck_ipa = [
                     self.get_idempotent_actions(g, gd, gp, a)
-                    for g, gd, gp, a in zip(agraphs, torch_graphs, bgraphs, gactions)
+                    for g, gd, gp, a in zip(agraphs, torch_graphs, bgraphs, gactions, strict=False)
                 ]
                 batch.bck_ip_actions = torch.tensor(sum(bck_ipa, []))
                 batch.bck_ip_lens = torch.tensor([len(i) for i in bck_ipa])
@@ -505,7 +505,7 @@ class TrajectoryBalance(GFNAlgorithm):
             # Life is pain, log_p_B is one unit too short for all trajs
 
             log_p_B_unif = torch.zeros_like(log_p_B)
-            for i, (s, e) in enumerate(zip(first_graph_idx, traj_cumlen)):
+            for i, (s, e) in enumerate(zip(first_graph_idx, traj_cumlen, strict=False)):
                 log_p_B_unif[s : e - 1] = batch.log_p_B[s - i : e - 1 - i]
 
             if self.cfg.backward_policy == Backward.Uniform:
@@ -716,7 +716,7 @@ class TrajectoryBalance(GFNAlgorithm):
         assert self.cfg.do_parameterize_p_b
 
         x = torch.cumsum(traj_lengths, 0)
-        for ep, (s_idx, e_idx) in enumerate(zip(shift_right(x), x)):
+        for ep, (s_idx, e_idx) in enumerate(zip(shift_right(x), x, strict=False)):
             # the last state is the same as the first state
             e_idx -= 1
             total_loss[ep] = self._n_loss(self.cfg.n_loss, P_N[s_idx : e_idx - 1], N[s_idx:e_idx])
@@ -767,7 +767,7 @@ class TrajectoryBalance(GFNAlgorithm):
         x = torch.cumsum(traj_lengths, 0)
         # P_B is already shifted
         pdiff = P_F - P_B
-        for ep, (s_idx, e_idx) in enumerate(zip(shift_right(x), x)):
+        for ep, (s_idx, e_idx) in enumerate(zip(shift_right(x), x, strict=False)):
             if self.cfg.do_parameterize_p_b:
                 e_idx -= 1
             n = e_idx - s_idx

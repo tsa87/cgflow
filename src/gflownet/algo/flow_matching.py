@@ -22,7 +22,7 @@ def relabel(ga: GraphAction, g: Graph):
     labeled 0-N, whereas GraphBuildingEnv.parent can return parents with e.g. a removed node that
     creates a gap in 0-N, leading to a faulty encoding of the graph.
     """
-    rmap = dict(zip(g.nodes, range(len(g.nodes))))
+    rmap = dict(zip(g.nodes, range(len(g.nodes)), strict=False))
     if not len(g) and ga.action == GraphActionType.AddNode:
         rmap[0] = 0  # AddNode can add to the empty graph, the source is still 0
     g = nx.relabel_nodes(g, rmap)
@@ -78,11 +78,11 @@ class FlowMatching(TrajectoryBalance):  # TODO: FM inherits from TB but we could
             ]
             parents = []
             parent_graphs = []
-            for state, parent_set, parent_set_graphs in zip(states, base_parents, base_parent_graphs):
+            for state, parent_set, parent_set_graphs in zip(states, base_parents, base_parent_graphs, strict=False):
                 new_parent_set = []
                 new_parent_graphs = []
                 # But for each parent we add all the possible (action, parent) pairs to the sets of parents
-                for (ga, p), pd in zip(parent_set, parent_set_graphs):
+                for (ga, p), pd in zip(parent_set, parent_set_graphs, strict=False):
                     ipa = self.get_idempotent_actions(p, pd, state, ga, return_aidx=False)
                     new_parent_set += [(a, p) for a in ipa]
                     new_parent_graphs += [pd] * len(ipa)
@@ -100,7 +100,7 @@ class FlowMatching(TrajectoryBalance):  # TODO: FM inherits from TB but we could
         # convert actions to ActionIndex
         parent_actions = [pact for parent in parents for pact, pstate in parent]
         parent_actionidxs = [
-            self.ctx.GraphAction_to_ActionIndex(gdata, a) for gdata, a in zip(parent_graphs, parent_actions)
+            self.ctx.GraphAction_to_ActionIndex(gdata, a) for gdata, a in zip(parent_graphs, parent_actions, strict=False)
         ]
         # convert state to Data
         state_graphs = [self.ctx.graph_to_Data(i[0]) for tj in trajs for i in tj["traj"][1:]]

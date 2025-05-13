@@ -1,7 +1,6 @@
 from rdkit import Chem
-from rdkit.Chem.rdChemReactions import ChemicalReaction, ReactionFromSmarts
-
 from rdkit.Chem import Mol as RDMol
+from rdkit.Chem.rdChemReactions import ChemicalReaction, ReactionFromSmarts
 
 
 class Reaction:
@@ -54,7 +53,6 @@ class Reaction:
                 try:
                     mol = Chem.RemoveHs(mol)
                     mol.UpdatePropertyCache()
-                    Chem.SanitizeMol(mol)
                     assert mol is not None
                 except:
                     break
@@ -73,37 +71,33 @@ class Reaction:
                 unique_ps.append(p)
         return unique_ps
 
-    # def forward(self, *reactants: RDMol, strict: bool) -> list[tuple[RDMol, ...]]:
-    #     """Perform in-silico reactions"""
-    #     assert (
-    #         len(reactants) == self.num_reactants
-    #     ), f"number of inputs should be same to the number of reactants ({len(reactants)} vs {self.num_reactants})"
-    #     ps: list[list[RDMol]] = self._rxn.RunReactants(reactants, 5)
-    #
-    #     refine_ps: list[tuple[RDMol, ...]] = []
-    #     for p in ps:
-    #         if not len(p) == self.num_products:
-    #             continue
-    #         _ps = []
-    #         for mol in map(_refine_mol, p):
-    #             if mol is None:
-    #                 break
-    #             _ps.append(mol)
-    #         if len(_ps) == self.num_products:
-    #             refine_ps.append(tuple(_ps))
-    #     del ps
-    #     if strict:
-    #         assert len(refine_ps) > 0, "Reaction did not yield any products."
-    #
-    #     # remove redundant products
-    #     unique_ps = []
-    #     _storage = set()
-    #     for p in refine_ps:
-    #         key = tuple(Chem.MolToSmiles(mol) for mol in p)
-    #         if key not in _storage:
-    #             _storage.add(key)
-    #             unique_ps.append(p)
-    #     return unique_ps
+    def forward_smi(self, *reactants: RDMol, strict: bool = False) -> list[tuple[str, ...]]:
+        """Perform in-silico reactions"""
+        assert (
+            len(reactants) == self.num_reactants
+        ), f"number of inputs should be same to the number of reactants ({len(reactants)} vs {self.num_reactants})"
+        assert len(reactants) == self.num_reactants
+        ps: list[list[RDMol]] = self._rxn.RunReactants(reactants, 5)
+
+        # refine products
+        refine_ps: list[tuple[str, ...]] = []
+        for p in ps:
+            if not len(p) == self.num_products:
+                continue
+            _ps = []
+            for mol in p:
+                try:
+                    mol = Chem.RemoveHs(mol, updateExplicitCount=True)
+                    smi = Chem.MolToSmiles(mol)
+                except Exception:
+                    break
+                smi = smi.replace("[C]", "C").replace("[N]", "N").replace("[CH]", "C")
+                _ps.append(smi)
+            if len(_ps) == self.num_products:
+                refine_ps.append(tuple(_ps))
+        if strict:
+            assert len(refine_ps) > 0, "ChemicalReaction did not yield any products."
+        return refine_ps
 
 
 class BiRxnReaction(Reaction):
@@ -125,6 +119,11 @@ class BiRxnReaction(Reaction):
             reactants = tuple(reversed(reactants))
         return super().forward(*reactants, strict=strict)
 
+    def forward_smi(self, *reactants: RDMol, strict: bool = False) -> list[tuple[str, ...]]:
+        if self.block_order == 0:
+            reactants = tuple(reversed(reactants))
+        return super().forward_smi(*reactants, strict=strict)
+
 
 class BckBiRxnReaction(Reaction):
     def __init__(self, template: str, is_block_first: bool):
@@ -139,11 +138,8 @@ class BckBiRxnReaction(Reaction):
             ps = [(p[1], p[0]) for p in ps]
         return ps
 
-
-def _refine_mol(mol: RDMol) -> RDMol | None:
-    try:
-        smi = Chem.MolToSmiles(Chem.RemoveHs(mol))
-        mol = Chem.MolFromSmiles(smi, replacements={"[C]": "C", "[N]": "N", "[CH]": "C"})
-    except Exception:
-        return None
-    return mol
+    def forward_smi(self, *reactants: RDMol, strict: bool = False) -> list[tuple[str, ...]]:
+        ps = super().forward_smi(*reactants, strict=strict)
+        if self.block_order == 0:
+            ps = [(p[1], p[0]) for p in ps]
+        return ps

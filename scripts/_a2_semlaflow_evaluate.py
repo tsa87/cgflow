@@ -1,3 +1,8 @@
+""" Evalute trained pose prediciton model
+Example usage:
+python scripts/_a2_cgflow_evaluate.py --ckpt_path /home/to.shen/projects/CGFlow/wandb/equinv-plinder/icxk301o/checkpoints/last.ckpt --data_path /home/to.shen/projects/CGFlow/data/complex/plinder/smol --dataset plinder
+"""
+
 import argparse
 from pathlib import Path
 from functools import partial
@@ -6,14 +11,14 @@ import torch
 import numpy as np
 import lightning as L
 
-import semlaflow.scriptutil as util
-from semlaflow.models.fm import Integrator, MolecularCFM
-from semlaflow.models.semla import EquiInvDynamics, SemlaGenerator
+import cgflow.scriptutil as util
+import cgflow.util.rdkit as smolRD
+from cgflow.models.pocket import PocketEncoder, LigandGenerator
+from cgflow.models.fm import MolecularCFM, Integrator
 
-from semlaflow.data.datasets import GeometricDataset
-from semlaflow.data.datamodules import GeometricInterpolantDM
-from semlaflow.data.interpolate import GeometricInterpolant, GeometricNoiseSampler
-
+from cgflow.data.datasets import GeometricDataset, PocketComplexDataset
+from cgflow.data.datamodules import GeometricInterpolantDM
+from cgflow.data.interpolate import GeometricInterpolant, GeometricNoiseSampler
 
 # Default script arguments
 DEFAULT_DATASET_SPLIT = "test"
@@ -35,76 +40,44 @@ def load_model(args, vocab):
     hparams["sampling_strategy"] = args.ode_sampling_strategy
 
     n_bond_types = util.get_n_bond_types(hparams["integration-type-strategy"])
+    n_extra_atom_feats = 2 if args.is_autoregressive else 1
 
     # Set default arch to semla if nothing has been saved
     if hparams.get("architecture") is None:
         hparams["architecture"] = "semla"
 
     if hparams["architecture"] == "semla":
-        dynamics = EquiInvDynamics(
-            hparams["d_model"],
-            hparams["d_message"],
-            hparams["n_coord_sets"],
-            hparams["n_layers"],
-            n_attn_heads=hparams["n_attn_heads"],
-            d_message_hidden=hparams["d_message_hidden"],
-            d_edge=hparams["d_edge"],
-            self_cond=hparams["self_cond"],
-            coord_norm=hparams["coord_norm"],
-        )
-        egnn_gen = SemlaGenerator(
-            hparams["d_model"],
-            dynamics,
-            vocab.size,
-            hparams["n_atom_feats"],
-            d_edge=hparams["d_edge"],
-            n_edge_types=n_bond_types,
-            self_cond=hparams["self_cond"],
-            size_emb=hparams["size_emb"],
-            max_atoms=hparams["max_atoms"],
-        )
+        pocket_enc = PocketEncoder(hparams["pocket-d_equi"],
+                                   hparams["pocket-d_inv"],
+                                   hparams["pocket-d_message"],
+                                   hparams["pocket-n_layers"],
+                                   hparams["pocket-n_attn_heads"],
+                                   hparams["pocket-d_message_ff"],
+                                   hparams["pocket-d_edge"],
+                                   vocab.size,
+                                   n_bond_types,
+                                   len(smolRD.IDX_RESIDUE_MAP),
+                                   fixed_equi=hparams["pocket-fixed_equi"])
 
-    elif hparams["architecture"] == "eqgat":
-        from semlaflow.models.eqgat import EqgatGenerator
-
-        egnn_gen = EqgatGenerator(
-            hparams["d_model"],
-            hparams["n_layers"],
-            hparams["n_equi_feats"],
-            vocab.size,
-            hparams["n_atom_feats"],
-            hparams["d_edge"],
-            hparams["n_edge_types"],
-        )
-
-    elif hparams["architecture"] == "egnn":
-        from semlaflow.models.egnn import VanillaEgnnGenerator
-
-        n_layers = (
-            args.n_layers if hparams.get("n_layers") is None else hparams["n_layers"]
-        )
-        if n_layers is None:
-            raise ValueError(
-                "No hparam for n_layers was saved, use script arg to provide n_layers"
-            )
-
-        egnn_gen = VanillaEgnnGenerator(
-            hparams["d_model"],
-            n_layers,
-            vocab.size,
-            hparams["n_atom_feats"],
-            d_edge=hparams["d_edge"],
-            n_edge_types=n_bond_types,
-        )
+        egnn_gen = LigandGenerator(hparams["d_equi"],
+                                   hparams["d_inv"],
+                                   hparams["d_message"],
+                                   hparams["n_layers"],
+                                   hparams["n_attn_heads"],
+                                   hparams["d_message_ff"],
+                                   hparams["d_edge"],
+                                   vocab.size,
+                                   n_bond_types,
+                                   n_extra_atom_feats=n_extra_atom_feats,
+                                   self_cond=hparams["self_cond"],
+                                   pocket_enc=pocket_enc)
 
     else:
         raise ValueError("Unknown architecture hyperparameter.")
 
-    type_mask_index = (
-        vocab.indices_from_tokens(["<MASK>"])[0]
-        if hparams["train-type-interpolation"] == "mask"
-        else None
-    )
+    type_mask_index = (vocab.indices_from_tokens([
+        "<MASK>"
+    ])[0] if hparams["integration-type-strategy"] == "mask" else None)
     bond_mask_index = None
 
     integrator = Integrator(
@@ -128,6 +101,8 @@ def load_model(args, vocab):
 
 
 def build_dm(args, hparams, vocab):
+    is_complex = False
+
     if args.dataset == "qm9":
         coord_std = util.QM9_COORDS_STD_DEV
         bucket_limits = util.QM9_BUCKET_LIMITS
@@ -136,13 +111,17 @@ def build_dm(args, hparams, vocab):
         coord_std = util.GEOM_COORDS_STD_DEV
         bucket_limits = util.GEOM_DRUGS_BUCKET_LIMITS
 
+    elif args.dataset == "plinder" or args.dataset == "crossdock":
+        coord_std = util.PLINDER_COORDS_STD_DEV
+        bucket_limits = util.PLINDER_BUCKET_LIMITS
+        is_complex = True
+
     else:
         raise ValueError(f"Unknown dataset {args.dataset}")
 
     n_bond_types = 5
-    transform = partial(
-        util.mol_transform, vocab=vocab, n_bonds=n_bond_types, coord_std=coord_std
-    )
+    if 
+    transform = partial(util.mol_transform, vocab=vocab, coord_std=coord_std)
 
     if args.dataset_split == "train":
         dataset_path = Path(args.data_path) / "train.smol"
@@ -150,24 +129,34 @@ def build_dm(args, hparams, vocab):
         dataset_path = Path(args.data_path) / "val.smol"
     elif args.dataset_split == "test":
         dataset_path = Path(args.data_path) / "test.smol"
+    else:
+        raise ValueError(f"Unknown dataset split {args.dataset}")
 
-    dataset = GeometricDataset.load(dataset_path, transform=transform)
+    if is_complex:
+        dataset = PocketComplexDataset.load(dataset_path, transform=transform)
+    else:
+        dataset = GeometricDataset.load(dataset_path, transform=transform)
     dataset = dataset.sample(args.n_molecules, replacement=True)
 
-    type_mask_index = (
-        vocab.indices_from_tokens(["<MASK>"])[0]
-        if hparams["val-type-interpolation"] == "mask"
-        else None
-    )
+    type_mask_index = None
     bond_mask_index = None
+    if hparams['type_strategy'] == "mask":
+        raise ValueError("Masking not supported for evaluation yet.")
+    elif hparams['type_strategy'] == "no-change" or hparams[
+            'type_strategy'] == "auto-regressive":
+        categorical_interpolation = "no-change"
+    elif hparams['type_strategy'] == "uniform-sample":
+        categorical_interpolation = "unmask"
+    else:
+        raise ValueError(f"Unknown type strategy {hparams['type_strategy']}")
 
     prior_sampler = GeometricNoiseSampler(
         vocab.size,
         n_bond_types,
         coord_noise="gaussian",
-        type_noise=hparams["val-prior-type-noise"],
-        bond_noise=hparams["val-prior-bond-noise"],
-        scale_ot=hparams["val-prior-noise-scale-ot"],
+        type_noise="uniform-sample",
+        bond_noise="uniform-sample",
+        scale_ot=False,
         zero_com=True,
         type_mask_index=type_mask_index,
         bond_mask_index=bond_mask_index,
@@ -175,8 +164,8 @@ def build_dm(args, hparams, vocab):
     eval_interpolant = GeometricInterpolant(
         prior_sampler,
         coord_interpolation="linear",
-        type_interpolation=hparams["val-type-interpolation"],
-        bond_interpolation=hparams["val-bond-interpolation"],
+        type_interpolation=categorical_interpolation,
+        bond_interpolation=categorical_interpolation,
         equivariant_ot=False,
         batch_ot=False,
     )
@@ -203,7 +192,9 @@ def dm_from_ckpt(args, vocab):
 def evaluate(args, model, dm, metrics, stab_metrics):
     results_list = []
     for replicate_index in range(args.n_replicates):
-        print(f"Running replicate {replicate_index + 1} out of {args.n_replicates}")
+        print(
+            f"Running replicate {replicate_index + 1} out of {args.n_replicates}"
+        )
         molecules, _, stabilities = util.generate_molecules(
             model,
             dm,
@@ -213,9 +204,10 @@ def evaluate(args, model, dm, metrics, stab_metrics):
         )
 
         print("Calculating metrics...")
-        results = util.calc_metrics_(
-            molecules, metrics, stab_metrics=stab_metrics, mol_stabs=stabilities
-        )
+        results = util.calc_metrics_(molecules,
+                                     metrics,
+                                     stab_metrics=stab_metrics,
+                                     mol_stabs=stabilities)
         results_list.append(results)
 
     results_dict = {key: [] for key in results_list[0].keys()}
@@ -223,8 +215,14 @@ def evaluate(args, model, dm, metrics, stab_metrics):
         for metric, value in results.items():
             results_dict[metric].append(value.item())
 
-    mean_results = {metric: np.mean(values) for metric, values in results_dict.items()}
-    std_results = {metric: np.std(values) for metric, values in results_dict.items()}
+    mean_results = {
+        metric: np.mean(values)
+        for metric, values in results_dict.items()
+    }
+    std_results = {
+        metric: np.std(values)
+        for metric, values in results_dict.items()
+    }
 
     return mean_results, std_results, results_dict
 
@@ -255,13 +253,13 @@ def main(args):
     print("Model complete.")
 
     print("Initialising metrics...")
-    metrics, stab_metrics = util.init_metrics(args.data_path, model)
+    metrics, stab_metrics, complex_metrics, conf_metrics = util.init_metrics(
+        model, args.data_path, is_complex=args.is_complex)
     print("Metrics complete.")
 
     print("Running evaluation...")
-    avg_results, std_results, list_results = evaluate(
-        args, model, dm, metrics, stab_metrics
-    )
+    avg_results, std_results, list_results = evaluate(args, model, dm, metrics,
+                                                      stab_metrics)
     print("Evaluation complete.")
 
     util.print_results(avg_results, std_results=std_results)
@@ -281,27 +279,30 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt_path", type=str)
     parser.add_argument("--data_path", type=str)
     parser.add_argument("--dataset", type=str)
+    parser.add_argument("--is_complex", action="store_true")
+    parser.add_argument("--is_autoregressive", action="store_true")
 
     parser.add_argument("--batch_cost", type=int, default=DEFAULT_BATCH_COST)
-    parser.add_argument("--dataset_split", type=str, default=DEFAULT_DATASET_SPLIT)
+    parser.add_argument("--dataset_split",
+                        type=str,
+                        default=DEFAULT_DATASET_SPLIT)
     parser.add_argument("--n_molecules", type=int, default=DEFAULT_N_MOLECULES)
-    parser.add_argument("--n_replicates", type=int, default=DEFAULT_N_REPLICATES)
-    parser.add_argument(
-        "--integration_steps", type=int, default=DEFAULT_INTEGRATION_STEPS
-    )
-    parser.add_argument(
-        "--cat_sampling_noise_level", type=int, default=DEFAULT_CAT_SAMPLING_NOISE_LEVEL
-    )
-    parser.add_argument(
-        "--ode_sampling_strategy", type=str, default=DEFAULT_ODE_SAMPLING_STRATEGY
-    )
+    parser.add_argument("--n_replicates",
+                        type=int,
+                        default=DEFAULT_N_REPLICATES)
+    parser.add_argument("--integration_steps",
+                        type=int,
+                        default=DEFAULT_INTEGRATION_STEPS)
+    parser.add_argument("--cat_sampling_noise_level",
+                        type=int,
+                        default=DEFAULT_CAT_SAMPLING_NOISE_LEVEL)
+    parser.add_argument("--ode_sampling_strategy",
+                        type=str,
+                        default=DEFAULT_ODE_SAMPLING_STRATEGY)
 
-    parser.add_argument(
-        "--bucket_cost_scale", type=str, default=DEFAULT_BUCKET_COST_SCALE
-    )
-
-    # Allow overridding for EGNN arch since some models were not saved with a value for n_layers
-    parser.add_argument("--n_layers", type=int, default=None)
+    parser.add_argument("--bucket_cost_scale",
+                        type=str,
+                        default=DEFAULT_BUCKET_COST_SCALE)
 
     args = parser.parse_args()
     main(args)

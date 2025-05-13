@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List
 
 from gflownet.utils.misc import StrictDataClass
 
@@ -27,7 +26,7 @@ class SEHMOOTaskConfig(StrictDataClass):
 
     n_valid: int = 15
     n_valid_repeats: int = 128
-    objectives: List[str] = field(default_factory=lambda: ["seh", "qed", "sa", "mw"])
+    objectives: list[str] = field(default_factory=lambda: ["seh", "qed", "sa", "mw"])
     log_topk: bool = False
     online_pareto_front: bool = True
 
@@ -58,7 +57,7 @@ class QM9MOOTaskConfig(StrictDataClass):
 
     n_valid: int = 15
     n_valid_repeats: int = 128
-    objectives: List[str] = field(default_factory=lambda: ["gap", "qed", "sa"])
+    objectives: list[str] = field(default_factory=lambda: ["gap", "qed", "sa"])
     online_pareto_front: bool = True
 
 

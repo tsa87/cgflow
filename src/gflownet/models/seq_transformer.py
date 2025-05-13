@@ -1,6 +1,5 @@
 # This code is adapted from https://github.com/MJ10/mo_gfn
 import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -60,7 +59,7 @@ class SeqTransformerGFN(nn.Module):
             self.output = MLPWithDropout(num_hid, num_outs, [2 * num_hid, 2 * num_hid], mc.dropout)
         self.num_hid = num_hid
 
-    def logZ(self, cond_info: Optional[torch.Tensor]):
+    def logZ(self, cond_info: torch.Tensor | None):
         if cond_info is None:
             return self._logZ(torch.ones((1, 1), device=self._logZ.weight.device))
         return self._logZ(cond_info)

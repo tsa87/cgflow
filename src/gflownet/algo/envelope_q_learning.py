@@ -89,7 +89,7 @@ class GraphTransformerFragEnvelopeQL(nn.Module):
             w = cond[:, -self.num_objectives :]
             w_dot_Q = [
                 (qi.reshape((qi.shape[0], qi.shape[1] // w.shape[1], w.shape[1])) * w[b][:, None, :]).sum(2)
-                for qi, b in zip(cat.logits, cat.batch)
+                for qi, b in zip(cat.logits, cat.batch, strict=False)
             ]
             cat.action_masks = [1, g.add_node_mask.cpu(), g.set_edge_attr_mask.cpu()]
             # Set the softmax distribution to a very low temperature to make sure only the max gets
@@ -148,7 +148,7 @@ class GraphTransformerEnvelopeQL(nn.Module):
         w = cond[:, -self.num_objectives :]
         w_dot_Q = [
             (qi.reshape((qi.shape[0], qi.shape[1] // w.shape[1], w.shape[1])) * w[b][:, None, :]).sum(2)
-            for qi, b in zip(cat.logits, cat.batch)
+            for qi, b in zip(cat.logits, cat.batch, strict=False)
         ]
         # Set the softmax distribution to a very low temperature to make sure only the max gets
         # sampled (and we get random argmax tie breaking for free!):
@@ -264,7 +264,7 @@ class EnvelopeQLearning:
         torch_graphs = [self.ctx.graph_to_Data(i[0]) for tj in trajs for i in tj["traj"]]
         actions = [
             self.ctx.GraphAction_to_ActionIndex(g, a)
-            for g, a in zip(torch_graphs, [i[1] for tj in trajs for i in tj["traj"]])
+            for g, a in zip(torch_graphs, [i[1] for tj in trajs for i in tj["traj"]], strict=False)
         ]
         batch = self.ctx.collate(torch_graphs)
         batch.traj_lens = torch.tensor([len(i["traj"]) for i in trajs])
@@ -351,7 +351,7 @@ class EnvelopeQLearning:
                 )
                 # then we multiply the Q(s, a, w') and w, take the sum on the right axis for the dot
             ).sum(2)
-            for qi, b in zip(Q_omega_prime, fwd_cat.batch)
+            for qi, b in zip(Q_omega_prime, fwd_cat.batch, strict=False)
         ]  # List[shape: (N_omega * num objects, num actions)]
 
         # Now we need to do an argmax, over actions _and_ omegas, of the dot which has shape

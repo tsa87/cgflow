@@ -9,6 +9,7 @@ experiments/data/stock/*
 experiments/data/experiments/*
 experiments/data/complex/*
 experiments/analysis/
+experiments/LIT-PCBA/*
 unidock_2025*
 
 # semlaflow
@@ -60,3 +61,4 @@ __pycache__/
 
 # experimental code
 src/app
+weights

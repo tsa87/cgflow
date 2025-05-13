@@ -1,5 +1,5 @@
 import socket
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 import torch
 import torch.nn as nn
@@ -33,7 +33,7 @@ class SEHTask(GFNTask):
     def __init__(
         self,
         cfg: Config,
-        wrap_model: Optional[Callable[[nn.Module], nn.Module]] = None,
+        wrap_model: Callable[[nn.Module], nn.Module] | None = None,
     ) -> None:
         self._wrap_model = wrap_model if wrap_model is not None else (lambda x: x)
         self.models = self._load_task_models()
@@ -46,20 +46,20 @@ class SEHTask(GFNTask):
         model = self._wrap_model(model)
         return {"seh": model}
 
-    def sample_conditional_information(self, n: int, train_it: int) -> Dict[str, Tensor]:
+    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
         return self.temperature_conditional.sample(n)
 
-    def cond_info_to_logreward(self, cond_info: Dict[str, Tensor], flat_reward: ObjectProperties) -> LogScalar:
+    def cond_info_to_logreward(self, cond_info: dict[str, Tensor], flat_reward: ObjectProperties) -> LogScalar:
         return LogScalar(self.temperature_conditional.transform(cond_info, to_logreward(flat_reward)))
 
-    def compute_reward_from_graph(self, graphs: List[Data]) -> Tensor:
+    def compute_reward_from_graph(self, graphs: list[Data]) -> Tensor:
         batch = gd.Batch.from_data_list([i for i in graphs if i is not None])
         batch.to(self.models["seh"].device if hasattr(self.models["seh"], "device") else get_worker_device())
         preds = self.models["seh"](batch).reshape((-1,)).data.cpu() / 8
         preds[preds.isnan()] = 0
         return preds.clip(1e-4, 100).reshape((-1,))
 
-    def compute_obj_properties(self, mols: List[RDMol]) -> Tuple[ObjectProperties, Tensor]:
+    def compute_obj_properties(self, mols: list[RDMol]) -> tuple[ObjectProperties, Tensor]:
         graphs = [bengio2021flow.mol2graph(i) for i in mols]
         is_valid = torch.tensor([i is not None for i in graphs]).bool()
         if not is_valid.any():
@@ -107,7 +107,7 @@ class LittleSEHDataset(Dataset):
     def __init__(self, smis) -> None:
         super().__init__()
         self.props: ObjectProperties
-        self.mols: List[Graph] = []
+        self.mols: list[Graph] = []
         self.smis = smis
 
     def setup(self, task: SEHTask, ctx: FragMolBuildingEnvContext) -> None:

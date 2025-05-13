@@ -1,7 +1,6 @@
 import logging
 import sys
 
-
 _WORKER = {}
 
 

@@ -1,16 +1,16 @@
-project: "cgflow-litpcba"
-program: ./scripts/exp1_litpcba_moo.py
-name: "cgflow-redocking"
+project: "cgflow"
+program: ./scripts/exp1_redock_unidock.py
+name: "redock"
 
 command:
   - ${env}
   - python
   - ${program}
-  - redocking # prefix
-  - ./logs/exp1-redock/ # storage
-  - ../data/envs/catalog # env dir
-  - ../data/experiments/LIT-PCBA # pocket dir
-  - ../weights/crossdocked_mini_epoch97.ckpt # ckpt
+  - redock # group
+  - ./logs/exp1-redocking/ # storage
+  - data/envs/catalog/ # env dir
+  - LIT-PCBA/ # pocket dir
+  - ../weights/crossdocked2020_till_end.ckpt # ckpt
 
 method: grid
 parameters:
@@ -32,8 +32,6 @@ parameters:
       - TP53
       - VDR
   seed:
-    values: [0, 1, 2, 3]
-  redocking:
-    value: True
+    values: [0, 1, 2]
   num_inference_steps:
     value: 80

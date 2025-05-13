@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from gflownet.utils.misc import StrictDataClass
 from gflownet.algo.config import TBConfig
+from gflownet.utils.misc import StrictDataClass
 
 
 @dataclass
@@ -19,8 +19,8 @@ class SubsamplingConfig(StrictDataClass):
     """
 
     sampling_ratio: float = 1.0
-    min_sampling: int = 50
-    importance_temp: float = 0.0
+    min_sampling: int = 100
+    importance_temp: float = 1.0
 
 
 @dataclass

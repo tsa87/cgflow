@@ -1,15 +1,15 @@
 import copy
 import math
+
 import torch
+from rdkit import Chem
 from torch import Tensor
 from torch_geometric import data as gd
-from rdkit import Chem
 
 from gflownet.algo.graph_sampling import GraphSampler
 from gflownet.envs.graph_building_env import ActionIndex, Graph
 from gflownet.utils.misc import get_worker_device, get_worker_rng
-
-from rxnflow.envs import SynthesisEnv, SynthesisEnvContext, MolGraph, RxnActionType, RxnAction
+from rxnflow.envs import MolGraph, RxnAction, RxnActionType, SynthesisEnv, SynthesisEnvContext
 from rxnflow.envs.retrosynthesis import MultiRetroSyntheticAnalyzer, RetroSynthesisTree
 from rxnflow.models.gfn import RxnFlow
 from rxnflow.policy.action_categorical import RxnActionCategorical
@@ -62,6 +62,9 @@ class SyntheticPathSampler(GraphSampler):
         self.correct_idempotent = correct_idempotent
         self.pad_with_terminal_state = pad_with_terminal_state
 
+    def terminate(self):
+        self.retro_analyzer.terminate()
+
     def _estimate_policy(
         self,
         model: RxnFlow,
@@ -82,9 +85,7 @@ class SyntheticPathSampler(GraphSampler):
     ) -> list[ActionIndex]:
         # NOTE: sample from forward policy (on-policy & random policy)
         sample_cat = copy.copy(fwd_cat)
-        if self.importance_temp == 1:
-            sample_cat.raw_logits = sample_cat.weighted_logits
-        elif self.importance_temp > 0:
+        if self.importance_temp > 0:
             sample_cat.raw_logits = sample_cat.importance_weighting(self.importance_temp)
         if random_action_prob > 0:
             dev = get_worker_device()
@@ -172,12 +173,14 @@ class SyntheticPathSampler(GraphSampler):
             log_probs = fwd_cat.log_prob(actions)
 
             for i, analysis_res in self.retro_analyzer.result():
-                bck_logprob[i].append(self.calc_bck_logprob(bck_a[i][-1], analysis_res))
-                retro_trees[i] = analysis_res
                 if analysis_res is None:
                     done[i] = True
-                    data[i]["is_sink"][-1] = 1
                     data[i]["is_valid"] = False
+                    data[i]["is_sink"][-1] = 1
+                    bck_logprob[i].append(0.0)
+                else:
+                    retro_trees[i] = analysis_res
+                    bck_logprob[i].append(self.calc_bck_logprob(bck_a[i][-1], analysis_res))
 
             # NOTE: Step each trajectory, and accumulate statistics
             for i, j in zip(not_done(range(n)), range(n), strict=False):
@@ -205,9 +208,11 @@ class SyntheticPathSampler(GraphSampler):
         assert all(done)
 
         for i, analysis_res in self.retro_analyzer.result():
-            bck_logprob[i].append(self.calc_bck_logprob(bck_a[i][-1], analysis_res))
             if analysis_res is None:
                 data[i]["is_valid"] = False
+                bck_logprob[i].append(0.0)
+            else:
+                bck_logprob[i].append(self.calc_bck_logprob(bck_a[i][-1], analysis_res))
 
         for i in range(n):
             data[i]["fwd_logprob"] = sum(fwd_logprob[i])
@@ -255,9 +260,7 @@ class SyntheticPathSampler(GraphSampler):
         return not any(atom.GetSymbol() == "*" for atom in obj.GetAtoms())
 
     def calc_bck_logprob(self, action: RxnAction, retro_tree: RetroSynthesisTree) -> float:
-        if retro_tree is None:
-            return 0.0
-        COEFF = 100
+        COEFF = 10000
         numerator = 0
         denomiator = 0
         for _action, child in retro_tree.branches:

@@ -3,7 +3,6 @@ import pathlib
 import queue
 import threading
 from collections import defaultdict
-from typing import List
 
 import numpy as np
 import torch
@@ -46,9 +45,9 @@ class MultiObjectiveStatsHook:
         self.compute_focus_accuracy = compute_focus_accuracy
         self.focus_cosim = focus_cosim
 
-        self.all_flat_rewards: List[Tensor] = []
-        self.all_focus_dirs: List[Tensor] = []
-        self.all_smi: List[str] = []
+        self.all_flat_rewards: list[Tensor] = []
+        self.all_focus_dirs: list[Tensor] = []
+        self.all_smi: list[str] = []
         self.pareto_queue: mp.Queue = mp.Queue()
         self.pareto_front = None
         self.pareto_front_smi = None
@@ -220,7 +219,7 @@ class TopKHook:
         self.num_preferences = num_preferences
 
     def __call__(self, trajs, rewards, flat_rewards, cond_info):
-        self.queue.put([(i["data_idx"], r) for i, r in zip(trajs, rewards)])
+        self.queue.put([(i["data_idx"], r) for i, r in zip(trajs, rewards, strict=False)])
         return {}
 
     def finalize(self):

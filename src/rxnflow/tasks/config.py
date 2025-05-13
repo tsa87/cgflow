@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+
 from omegaconf import MISSING
 
 
@@ -48,7 +49,7 @@ class SemlaFlowConfig:
     Attributes
     ----------
     ckpt_path: str (path)
-        checkpoint path of semlaflow
+        checkpoint path of cgflow
     ref_ligand_path: str (path)
         Reference ligand path
     """

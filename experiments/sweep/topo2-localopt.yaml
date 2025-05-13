@@ -1,0 +1,25 @@
+project: "cgflow-topo2-opt"
+program: experiments/scripts/exp3_topo2.py
+name: "cgflow-topo2-10k-sweep"
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - topo2 # prefix
+  - logs/ex3_topo2_10k/ # storage
+  - data/envs/catalog # env dir
+  - ../topo2/ # pocket dir
+  - weights/topo2_epoch209.ckpt # ckpt
+
+method: grid
+parameters:
+  protein:
+    values:
+      - 4FM9_T633_prepared_ref_ligand_plinder
+  seed:
+    values: [0, 1, 2]
+  redocking:
+    value: False
+  num_inference_steps:
+    value: 80

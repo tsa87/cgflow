@@ -1,14 +1,13 @@
-from gflownet.algo.config import TBVariant
+from torch import Tensor
 
+from gflownet.algo.config import TBVariant
+from rxnflow.algo.synthetic_path_sampling import SyntheticPathSampler
 from rxnflow.base.gflownet.trajectory_balance import CustomTB
 from rxnflow.config import Config
-from rxnflow.models.gfn import RxnFlow
 from rxnflow.envs import SynthesisEnv, SynthesisEnvContext
+from rxnflow.models.gfn import RxnFlow
 from rxnflow.policy import SubsamplingPolicy
-from rxnflow.algo.synthetic_path_sampling import SyntheticPathSampler
 from rxnflow.utils.misc import set_worker_env
-
-from torch import Tensor
 
 
 class SynthesisTB(CustomTB):

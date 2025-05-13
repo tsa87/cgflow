@@ -1,19 +1,16 @@
-import torch_geometric.data as gd
+from collections.abc import Callable
 
 import torch
-from torch import nn
-
-from collections.abc import Callable
-from torch import Tensor
+import torch_geometric.data as gd
 from rdkit.Chem import Mol as RDMol
+from torch import Tensor, nn
 
-from gflownet.utils.misc import get_worker_device
 from gflownet.models import bengio2021flow
+from gflownet.utils.misc import get_worker_device
+from rxnflow.base import RxnFlowTrainer
 from rxnflow.config import Config, init_empty
-from rxnflow.base import RxnFlowTrainer, mogfn_trainer
 from rxnflow.tasks.seh import SEHTask
-from rxnflow.utils.chem_metrics import mol2qed, mol2mw, mol2sascore
-
+from rxnflow.utils.chem_metrics import mol2mw, mol2qed, mol2sascore
 
 aux_tasks = {"qed": mol2qed, "mw": mol2mw, "sa": mol2sascore}
 
@@ -25,14 +22,14 @@ class SEHMOOTask(SEHTask):
         super().__init__(cfg, wrap_model)
         assert set(self.objectives) <= {"seh", "qed", "mw", "sa"}
 
-    def compute_rewards(self, objs: list[RDMol]) -> Tensor:
+    def compute_rewards(self, mols: list[RDMol]) -> Tensor:
         flat_r: list[Tensor] = []
         for obj in self.objectives:
             if obj == "seh":
-                graphs = [bengio2021flow.mol2graph(i) for i in objs]
+                graphs = [bengio2021flow.mol2graph(i) for i in mols]
                 flat_r.append(super().compute_reward_from_graph(graphs))
             else:
-                flat_r.append(aux_tasks[obj](objs))
+                flat_r.append(aux_tasks[obj](mols))
 
         flat_rewards = torch.stack(flat_r, dim=1)
         return flat_rewards
@@ -45,7 +42,6 @@ class SEHMOOTask(SEHTask):
         return preds.clip(1e-4, 100).reshape((-1,))
 
 
-@mogfn_trainer
 class SEHMOOTrainer(RxnFlowTrainer):
     def set_default_hps(self, base: Config):
         super().set_default_hps(base)

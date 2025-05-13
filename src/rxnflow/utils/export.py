@@ -1,6 +1,6 @@
-from pathlib import Path
-import sqlite3
 import csv
+import sqlite3
+from pathlib import Path
 
 
 def export_db(db_path: str | Path, out_csv_path: str | Path):

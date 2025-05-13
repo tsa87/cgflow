@@ -1,5 +1,6 @@
 import pathlib
-from typing import Any, Callable, Dict, List, Tuple, Union
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import torch
@@ -63,13 +64,13 @@ class QM9GapMOOTask(QM9GapTask):
         )
         assert set(self.objectives) <= {"gap", "qed", "sa", "mw"} and len(self.objectives) == len(set(self.objectives))
 
-    def reward_transform(self, y: Union[float, Tensor]) -> ObjectProperties:
+    def reward_transform(self, y: float | Tensor) -> ObjectProperties:
         return ObjectProperties(torch.as_tensor(y))
 
     def inverse_reward_transform(self, rp):
         return rp
 
-    def sample_conditional_information(self, n: int, train_it: int) -> Dict[str, Tensor]:
+    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
         cond_info = super().sample_conditional_information(n, train_it)
         pref_ci = self.pref_cond.sample(n)
         focus_ci = (
@@ -83,7 +84,7 @@ class QM9GapMOOTask(QM9GapTask):
         }
         return cond_info
 
-    def encode_conditional_information(self, steer_info: Tensor) -> Dict[str, Tensor]:
+    def encode_conditional_information(self, steer_info: Tensor) -> dict[str, Tensor]:
         """
         Encode conditional information at validation-time
         We use the maximum temperature beta for inference
@@ -121,7 +122,7 @@ class QM9GapMOOTask(QM9GapTask):
         }
 
     def relabel_condinfo_and_logrewards(
-        self, cond_info: Dict[str, Tensor], log_rewards: Tensor, flat_rewards: ObjectProperties, hindsight_idxs: Tensor
+        self, cond_info: dict[str, Tensor], log_rewards: Tensor, flat_rewards: ObjectProperties, hindsight_idxs: Tensor
     ):
         # TODO: we seem to be relabeling tensors in place, could that cause a problem?
         if self.focus_cond is None:
@@ -147,7 +148,7 @@ class QM9GapMOOTask(QM9GapTask):
         log_rewards = self.cond_info_to_logreward(cond_info, flat_rewards)
         return cond_info, log_rewards
 
-    def cond_info_to_logreward(self, cond_info: Dict[str, Tensor], flat_reward: ObjectProperties) -> LogScalar:
+    def cond_info_to_logreward(self, cond_info: dict[str, Tensor], flat_reward: ObjectProperties) -> LogScalar:
         """
         Compute the logreward from the flat_reward and the conditional information
         """
@@ -169,7 +170,7 @@ class QM9GapMOOTask(QM9GapTask):
 
         return LogScalar(clamped_logreward)
 
-    def compute_obj_properties(self, mols: List[RDMol]) -> Tuple[ObjectProperties, Tensor]:
+    def compute_obj_properties(self, mols: list[RDMol]) -> tuple[ObjectProperties, Tensor]:
         graphs = [mxmnet.mol2graph(i) for i in mols]  # type: ignore[attr-defined]
         assert len(graphs) == len(mols)
         is_valid = [i is not None for i in graphs]
@@ -178,7 +179,7 @@ class QM9GapMOOTask(QM9GapTask):
         if not any(is_valid):
             return ObjectProperties(torch.zeros((0, len(self.objectives)))), is_valid_t
         else:
-            flat_r: List[Tensor] = []
+            flat_r: list[Tensor] = []
             for obj in self.objectives:
                 if obj == "gap":
                     flat_r.append(super().compute_reward_from_graph(graphs))
@@ -315,7 +316,7 @@ class QM9MOOTrainer(QM9GapTrainer):
         parent = self
 
         class TopKMetricCB:
-            def on_validation_end(self, metrics: Dict[str, Any]):
+            def on_validation_end(self, metrics: dict[str, Any]):
                 top_k = parent._top_k_hook.finalize()
                 for i in range(len(top_k)):
                     metrics[f"topk_rewards_{i}"] = top_k[i]
@@ -336,7 +337,7 @@ class QM9MOOTrainer(QM9GapTrainer):
 
         return self._make_data_loader(src)
 
-    def train_batch(self, batch: gd.Batch, epoch_idx: int, batch_idx: int, train_it: int) -> Dict[str, Any]:
+    def train_batch(self, batch: gd.Batch, epoch_idx: int, batch_idx: int, train_it: int) -> dict[str, Any]:
         if self.task.focus_cond is not None:
             self.task.focus_cond.step_focus_model(batch, train_it)
         return super().train_batch(batch, epoch_idx, batch_idx, train_it)

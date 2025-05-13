@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 from gflownet.utils.misc import StrictDataClass
 
@@ -25,7 +25,7 @@ class TempCondConfig(StrictDataClass):
     """
 
     sample_dist: str = "uniform"
-    dist_params: List[Any] = field(default_factory=lambda: [0.5, 32])
+    dist_params: list[Any] = field(default_factory=lambda: [0.5, 32])
     num_thermometer_dim: int = 32
 
 
@@ -48,8 +48,8 @@ class WeightedPreferencesConfig(StrictDataClass):
         - "seeded": Enumerated preferences
         - None: All rewards equally weighted"""
 
-    preference_type: Optional[str] = "dirichlet"
-    preference_param: Optional[float] = 1.5
+    preference_type: str | None = "dirichlet"
+    preference_param: float | None = 1.5
 
 
 @dataclass
@@ -63,7 +63,7 @@ class FocusRegionConfig(StrictDataClass):
         [None, "centered", "partitioned", "dirichlet", "hyperspherical", "learned-gfn", "learned-tabular"]
     """
 
-    focus_type: Optional[str] = "centered"
+    focus_type: str | None = "centered"
     use_steer_thermomether: bool = False
     focus_cosim: float = 0.98
     focus_limit_coef: float = 0.1

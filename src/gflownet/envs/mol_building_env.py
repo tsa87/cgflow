@@ -1,4 +1,3 @@
-from typing import List
 
 import networkx as nx
 import numpy as np
@@ -87,7 +86,7 @@ class MolBuildingEnvContext(GraphBuildingEnvContext):
         self.atom_attr_logit_slice = {
             k: (s, e)
             for k, s, e in zip(
-                self.settable_atom_attrs, [0] + list(np.cumsum(num_atom_logits)), np.cumsum(num_atom_logits)
+                self.settable_atom_attrs, [0] + list(np.cumsum(num_atom_logits)), np.cumsum(num_atom_logits), strict=False
             )
         }
         # The attribute and value each logit dimension maps back to
@@ -113,7 +112,7 @@ class MolBuildingEnvContext(GraphBuildingEnvContext):
         num_bond_logits = [len(self.bond_attr_values[i]) - 1 for i in self.bond_attrs]
         self.bond_attr_logit_slice = {
             k: (s, e)
-            for k, s, e in zip(self.bond_attrs, [0] + list(np.cumsum(num_bond_logits)), np.cumsum(num_bond_logits))
+            for k, s, e in zip(self.bond_attrs, [0] + list(np.cumsum(num_bond_logits)), np.cumsum(num_bond_logits), strict=False)
         }
         self.bond_attr_logit_map = [(k, v) for k in self.bond_attrs for v in self.bond_attr_values[k][1:]]
         self._bond_valence = {
@@ -275,7 +274,7 @@ class MolBuildingEnvContext(GraphBuildingEnvContext):
                 # If there's only the 'v' key left and the node is a leaf, and the edge that connect to the node have
                 # no attributes set, we can remove it
                 remove_node_mask[i] = 1
-            for k, sl in zip(self.atom_attrs, self.atom_attr_slice):
+            for k, sl in zip(self.atom_attrs, self.atom_attr_slice, strict=False):
                 # idx > 0 means that the attribute is not the default value
                 idx = self.atom_attr_values[k].index(ad[k]) if k in ad else 0
                 x[i, sl + idx] = 1
@@ -334,7 +333,7 @@ class MolBuildingEnvContext(GraphBuildingEnvContext):
         remove_edge_attr_mask = np.zeros((len(g.edges), len(self.bond_attrs)), dtype=np.float32)
         for i, e in enumerate(g.edges):
             ad = g.edges[e]
-            for k, sl in zip(self.bond_attrs, self.bond_attr_slice):
+            for k, sl in zip(self.bond_attrs, self.bond_attr_slice, strict=False):
                 idx = self.bond_attr_values[k].index(ad[k]) if k in ad else 0
                 edge_attr[i * 2, sl + idx] = 1
                 edge_attr[i * 2 + 1, sl + idx] = 1
@@ -392,7 +391,7 @@ class MolBuildingEnvContext(GraphBuildingEnvContext):
             data.x = torch.cat([data.x, random_walk_probs(data, self.num_rw_feat, skip_odd=True)], 1)
         return data
 
-    def collate(self, graphs: List[gd.Data]):
+    def collate(self, graphs: list[gd.Data]):
         """Batch Data instances"""
         return gd.Batch.from_data_list(graphs, follow_batch=["edge_index", "non_edge_index"])
 

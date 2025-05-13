@@ -1,16 +1,16 @@
 import torch
 import torch.nn as nn
-
-from typing import Any
-from collections.abc import Callable
+from rdkit.Chem import Mol as RDMol
 from torch import Tensor
 
-from gflownet import ObjectProperties, LogScalar, GFNTask
+from gflownet import GFNTask, LogScalar, ObjectProperties
 from gflownet.utils import metrics
-from gflownet.utils.conditioning import TemperatureConditional
+from gflownet.utils.conditioning import (
+    FocusRegionConditional,
+    MultiObjectiveWeightedPreferences,
+    TemperatureConditional,
+)
 from gflownet.utils.transforms import to_logreward
-from gflownet.utils.conditioning import FocusRegionConditional, MultiObjectiveWeightedPreferences
-
 from rxnflow.config import Config
 
 
@@ -19,28 +19,20 @@ class BaseTask(GFNTask):
 
     is_moo: bool = False
 
-    def __init__(self, cfg: Config, wrap_model: Callable[[nn.Module], nn.Module]):
-        self._wrap_model: Callable[[nn.Module], nn.Module] = wrap_model
+    def __init__(self, cfg: Config):
         self.cfg: Config = cfg
-        self.models: dict[str, nn.Module] = self._load_task_models()
-        self.oracle_idx: int = 1
-
         self.temperature_conditional: TemperatureConditional = TemperatureConditional(cfg)
-        self.num_thermometer_dim = self.cfg.cond.temperature.num_thermometer_dim
-        self.temperature_sample_dist = self.cfg.cond.temperature.sample_dist
-        self.temperature_dist_params = self.cfg.cond.temperature.dist_params
+        self.num_cond_dim: int = self.temperature_conditional.encoding_size()
+        self.oracle_idx = 1
         if self.is_moo:
             self.setup_moo()
-        else:
-            self.num_objectives: int = 1
-            self.num_cond_dim: int = self.temperature_conditional.encoding_size()
 
-    def compute_rewards(self, objs: list[Any]) -> torch.Tensor:
+    def compute_rewards(self, mols: list[RDMol]) -> torch.Tensor:
         """TODO Implement: Calculate the rewards for objects
 
         Parameters
         ----------
-        objs : list[Any]
+        mols : list[Any]
             A list of m valid objects.
 
         Returns
@@ -50,7 +42,7 @@ class BaseTask(GFNTask):
         """
         raise NotImplementedError
 
-    def filter_object(self, obj: Any) -> bool:
+    def filter_object(self, mol: RDMol) -> bool:
         """TODO Implement if needed: Constraint for sampled molecules (e.g., lipinski's Ro5)
 
         Parameters
@@ -69,20 +61,17 @@ class BaseTask(GFNTask):
         """Convert the reward tensor to ObjectProperties class"""
         return ObjectProperties(rewards.clip(1e-4))
 
-    def compute_obj_properties(self, objs: list[Any]) -> tuple[ObjectProperties, Tensor]:
-        is_valid_t = torch.tensor([self.filter_object(obj) for obj in objs], dtype=torch.bool)
-        valid_objs = [obj for flag, obj in zip(is_valid_t, objs, strict=True) if flag]
-        if len(valid_objs) == 0:
+    def compute_obj_properties(self, mols: list[RDMol]) -> tuple[ObjectProperties, Tensor]:
+        is_valid_t = torch.tensor([self.filter_object(mol) for mol in mols], dtype=torch.bool)
+        valid_mols = [obj for flag, obj in zip(is_valid_t, mols, strict=True) if flag]
+        if len(valid_mols) == 0:
             rewards = torch.zeros((0, self.num_objectives))
         else:
-            rewards = self.compute_rewards(valid_objs)
-            assert rewards.shape[0] == len(valid_objs)
+            rewards = self.compute_rewards(valid_mols)
+            assert rewards.shape[0] == len(valid_mols)
         fr = self.reward_to_obj_properties(rewards)
         self.oracle_idx += 1
         return fr, is_valid_t
-
-    def _load_task_models(self) -> dict[str, nn.Module]:
-        return {}
 
     def setup_moo(self):
         mcfg = self.cfg.task.moo
@@ -94,6 +83,9 @@ class BaseTask(GFNTask):
         else:
             self.focus_cond = None
         self.pref_cond = MultiObjectiveWeightedPreferences(self.cfg)
+        self.temperature_sample_dist = self.cfg.cond.temperature.sample_dist
+        self.temperature_dist_params = self.cfg.cond.temperature.dist_params
+        self.num_thermometer_dim = self.cfg.cond.temperature.num_thermometer_dim
         self.num_cond_dim = (
             self.temperature_conditional.encoding_size()
             + self.pref_cond.encoding_size()
@@ -139,55 +131,10 @@ class BaseTask(GFNTask):
             }
         return cond_info
 
-    def get_conditional_information(
-        self,
-        n: int,
-        beta: Tensor | None = None,
-        steer_info: Tensor | None = None,
-    ) -> dict[str, Tensor]:
+    def encode_conditional_information(self, steer_info: Tensor) -> dict[str, Tensor]:
         """
         Encode conditional information at validation-time
-        Args:
-            beta: Tensor of shape (Batch,) containing the temperature beta. If beta is None, use maximum temperature
-            steer_info: Tensor of shape (Batch, 2 * n_objectives) containing the preferences and focus_dirs in that order
-        Returns:
-            dict[str, Tensor]: dictionary containing the encoded conditional information
-        """
-        if beta is None:
-            if self.temperature_sample_dist == "constant":
-                beta = torch.full((n,), float(self.temperature_dist_params[0]))
-            else:
-                beta = torch.full((n,), float(self.temperature_conditional.upper_bound))
-        assert beta.shape == (n,), f"beta should be of shape (Batch,), got: {beta.shape}, expected: {(n,)}"
-        beta_enc = self.temperature_conditional.encode(beta)
-
-        if self.is_moo:
-            # TODO: positional assumption here, should have something cleaner
-            assert steer_info is not None
-            preferences = steer_info[:, : len(self.objectives)].float()
-            focus_dir = steer_info[:, len(self.objectives) :].float()
-            preferences_enc = self.pref_cond.encode(preferences)
-            if self.focus_cond is not None:
-                focus_enc = self.focus_cond.encode(focus_dir)
-                encoding = torch.cat([beta_enc, preferences_enc, focus_enc], 1).float()
-            else:
-                encoding = torch.cat([beta_enc, preferences_enc], 1).float()
-            return {
-                "beta": beta,
-                "preferences": preferences,
-                "focus_dir": focus_dir,
-                "encoding": encoding,
-            }
-        else:
-            return {
-                "beta": beta,
-                "encoding": beta_enc,
-            }
-
-    def encode_conditional_information(self, steer_info: Tensor, beta: Tensor | None = None) -> dict[str, Tensor]:
-        """
-        Encode conditional information at validation-time
-        We use the maximum temperature beta for inference if beta is None
+        We use the maximum temperature beta for inference
         Args:
             steer_info: Tensor of shape (Batch, 2 * n_objectives) containing the preferences and focus_dirs
             in that order
@@ -195,37 +142,31 @@ class BaseTask(GFNTask):
             dict[str, Tensor]: dictionary containing the encoded conditional information
         """
         n = len(steer_info)
-        if beta is None:
-            if self.temperature_sample_dist == "constant":
-                beta = torch.full((n,), float(self.temperature_dist_params[0]))
-            else:
-                beta = torch.full((n,), float(self.temperature_conditional.upper_bound))
-        assert beta.shape == (n,), f"beta should be of shape (Batch,), got: {beta.shape}"
-        beta_enc = self.temperature_conditional.encode(beta)
-
-        if self.is_moo:
-            # TODO: positional assumption here, should have something cleaner
-            preferences = steer_info[:, : len(self.objectives)].float()
-            focus_dir = steer_info[:, len(self.objectives) :].float()
-
-            preferences_enc = self.pref_cond.encode(preferences)
-            if self.focus_cond is not None:
-                focus_enc = self.focus_cond.encode(focus_dir)
-                encoding = torch.cat([beta_enc, preferences_enc, focus_enc], 1).float()
-            else:
-                encoding = torch.cat([beta_enc, preferences_enc], 1).float()
-            return {
-                "beta": beta,
-                "encoding": encoding,
-                "preferences": preferences,
-                "focus_dir": focus_dir,
-            }
+        if self.temperature_sample_dist == "constant":
+            beta = torch.ones(n) * self.temperature_dist_params[0]
+            beta_enc = torch.zeros((n, self.num_thermometer_dim))
         else:
-            encoding = beta_enc
-            return {
-                "beta": beta,
-                "encoding": encoding,
-            }
+            beta = torch.ones(n) * self.temperature_dist_params[-1]
+            beta_enc = torch.ones((n, self.num_thermometer_dim))
+
+        assert len(beta.shape) == 1, f"beta should be of shape (Batch,), got: {beta.shape}"
+
+        # TODO: positional assumption here, should have something cleaner
+        preferences = steer_info[:, : len(self.objectives)].float()
+        focus_dir = steer_info[:, len(self.objectives) :].float()
+
+        preferences_enc = self.pref_cond.encode(preferences)
+        if self.focus_cond is not None:
+            focus_enc = self.focus_cond.encode(focus_dir)
+            encoding = torch.cat([beta_enc, preferences_enc, focus_enc], 1).float()
+        else:
+            encoding = torch.cat([beta_enc, preferences_enc], 1).float()
+        return {
+            "beta": beta,
+            "encoding": encoding,
+            "preferences": preferences,
+            "focus_dir": focus_dir,
+        }
 
     def relabel_condinfo_and_logrewards(
         self, cond_info: dict[str, Tensor], log_rewards: Tensor, obj_props: ObjectProperties, hindsight_idxs: Tensor

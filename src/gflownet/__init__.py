@@ -24,8 +24,8 @@ class GFNAlgorithm:
         self.updates += 1  # This isn't used anywhere?
 
     def compute_batch_losses(
-        self, model: nn.Module, batch: gd.Batch, num_bootstrap: Optional[int] = 0
-    ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        self, model: nn.Module, batch: gd.Batch, num_bootstrap: int | None = 0
+    ) -> tuple[Tensor, dict[str, Tensor]]:
         """Computes the loss for a batch of data, and proves logging informations
 
         Parameters
@@ -76,7 +76,7 @@ class GFNAlgorithm:
 
 
 class GFNTask:
-    def cond_info_to_logreward(self, cond_info: Dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
+    def cond_info_to_logreward(self, cond_info: dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
         """Combines a minibatch of reward signal vectors and conditional information into a scalar reward.
 
         Parameters
@@ -93,7 +93,7 @@ class GFNTask:
         """
         raise NotImplementedError()
 
-    def compute_obj_properties(self, objs: List[Any]) -> Tuple[ObjectProperties, Tensor]:
+    def compute_obj_properties(self, objs: list[Any]) -> tuple[ObjectProperties, Tensor]:
         """Compute the flat rewards of objs according the the tasks' proxies
 
         Parameters
@@ -109,7 +109,7 @@ class GFNTask:
         """
         raise NotImplementedError()
 
-    def sample_conditional_information(self, n: int, train_it: int) -> Dict[str, Tensor]:
+    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
         """Sample conditional information for n objects
 
         Parameters

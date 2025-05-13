@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Tuple, Union
+from collections.abc import Callable
 
 import numpy as np
 import torch
@@ -39,7 +39,7 @@ class QM9GapTask(GFNTask):
         self._width = self._max - self._min
         self._rtrans = "unit+95p"  # TODO: hyperparameter
 
-    def reward_transform(self, y: Union[float, Tensor]) -> ObjectProperties:
+    def reward_transform(self, y: float | Tensor) -> ObjectProperties:
         """Transforms a target quantity y (e.g. the LUMO energy in QM9) to a positive reward scalar"""
         if self._rtrans == "exp":
             flat_r = np.exp(-(y - self._min) / self._width)
@@ -77,13 +77,13 @@ class QM9GapTask(GFNTask):
         gap_model = self._wrap_model(gap_model)
         return {"mxmnet_gap": gap_model}
 
-    def sample_conditional_information(self, n: int, train_it: int) -> Dict[str, Tensor]:
+    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
         return self.temperature_conditional.sample(n)
 
-    def cond_info_to_logreward(self, cond_info: Dict[str, Tensor], flat_reward: ObjectProperties) -> LogScalar:
+    def cond_info_to_logreward(self, cond_info: dict[str, Tensor], flat_reward: ObjectProperties) -> LogScalar:
         return LogScalar(self.temperature_conditional.transform(cond_info, to_logreward(flat_reward)))
 
-    def compute_reward_from_graph(self, graphs: List[gd.Data]) -> Tensor:
+    def compute_reward_from_graph(self, graphs: list[gd.Data]) -> Tensor:
         batch = gd.Batch.from_data_list([i for i in graphs if i is not None])
         batch.to(
             self.models["mxmnet_gap"].device if hasattr(self.models["mxmnet_gap"], "device") else get_worker_device()
@@ -99,7 +99,7 @@ class QM9GapTask(GFNTask):
         )
         return preds
 
-    def compute_obj_properties(self, mols: List[RDMol]) -> Tuple[ObjectProperties, Tensor]:
+    def compute_obj_properties(self, mols: list[RDMol]) -> tuple[ObjectProperties, Tensor]:
         graphs = [mxmnet.mol2graph(i) for i in mols]  # type: ignore[attr-defined]
         is_valid = torch.tensor([i is not None for i in graphs]).bool()
         if not is_valid.any():

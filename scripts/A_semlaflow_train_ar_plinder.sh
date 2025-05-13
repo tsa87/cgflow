@@ -1,0 +1,33 @@
+DATA_DIR="experiments/data/complex/plinder_15A"
+
+python scripts/_a1_semlaflow_train.py \
+  --data_path ${DATA_DIR} \
+  --dataset plinder \
+  --categorical_strategy auto-regressive \
+  --ordering_strategy connected \
+  --decomposition_strategy reaction \
+  --pocket_n_layers 4 \
+  --n_coord_sets 64 \
+  --d_message 64 \
+  --d_message_hidden 96 \
+  --time_alpha 1.0 \
+  --t_per_ar_action 0.33 \
+  --max_interp_time 1.0 \
+  --max_action_t 0.66 \
+  --max_num_cuts 2 \
+  --dist_loss_weight 0. \
+  --type_loss_weight 0. \
+  --bond_loss_weight 0. \
+  --charge_loss_weight 0. \
+  --optimal_transport None \
+  --monitor val-conformer-no-align-rmsd \
+  --monitor_mode min \
+  --val_check_epochs 1 \
+  --acc_batches 2 \
+  --batch_cost 6 \
+  --num_workers 8 \
+  --ligand_local_connections 30 \
+  --pocket_local_connections 30 \
+  --pocket_ligand_local_connections 30 \
+  --max_atoms 800 \
+  --num_gpus 1

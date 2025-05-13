@@ -1,39 +1,22 @@
-project: "cgflow-litpcba"
-program: ./scripts/exp1_litpcba_moo.py
-name: "cgflow-localopt"
+project: "cgflow-update"
+program: ./scripts/exp1_redock_unidock.py
+name: "rebuttal-localopt"
 
 command:
   - ${env}
   - python
   - ${program}
-  - localopt # prefix
+  - localopt # group
   - ./logs/exp2-localopt/ # storage
-  - ../data/envs/catalog # env dir
-  - ../data/experiments/LIT-PCBA # pocket dir
-  - ../weights/crossdocked_mini_epoch97.ckpt # ckpt
+  - ../data/envs/catalog/ # env dir
+  - ../data/experiments/LIT-PCBA/ # pocket dir
+  - ../weights/crossdocked2020_till_end.ckpt # ckpt
 
 method: grid
 parameters:
   protein:
-    values:
-      - ADRB2
-      - ALDH1
-      - ESR_ago
-      - ESR_antago
-      - FEN1
-      - GBA
-      - IDH1
-      - KAT2A
-      - MAPK1
-      - MTORC1
-      - OPRK1
-      - PKM2
-      - PPARG
-      - TP53
-      - VDR
+    value: ALDH1
   seed:
     values: [0, 1, 2]
-  redocking:
-    value: False
   num_inference_steps:
     value: 80

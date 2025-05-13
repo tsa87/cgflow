@@ -1,10 +1,11 @@
+from pathlib import Path
+
 import torch
 import torch_geometric.data as gd
-from pathlib import Path
 from rdkit import Chem
 
-from rxnflow.communication.reward import RewardModule
 from gflownet.models import bengio2021flow
+from rxnflow.communication.reward import RewardModule
 
 
 class SEHReward(RewardModule):

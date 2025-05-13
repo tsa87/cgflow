@@ -1,0 +1,26 @@
+project: "cgflow"
+program: ./scripts/analysis1_time_scheduling.py
+name: "rebuttal-time-schedule"
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - rebuttal-fm-schedule # group
+  - ./logs/ana1-fm-time-schedule/ # storage
+  - ../data/envs/stock # env dir
+  - ../data/experiments/LIT-PCBA/ # pocket dir
+
+method: grid
+parameters:
+  protein:
+    value: ALDH1
+  seed:
+    values: [0, 1, 2]
+  num_inference_steps:
+    value: 50
+  checkpoint:
+    values:
+      - ../weights/crossdocked2020.ckpt
+      - ../weights/crossdocked2020_no_overlap.ckpt
+      - ../weights/crossdocked2020_till_end.ckpt

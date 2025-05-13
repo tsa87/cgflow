@@ -1,5 +1,4 @@
 from itertools import chain
-from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -12,7 +11,7 @@ from gflownet.config import Config
 from gflownet.envs.graph_building_env import GraphActionCategorical, GraphActionType, action_type_to_mask
 
 
-def mlp(n_in, n_hid, n_out, n_layer, act=nn.LeakyReLU):
+def mlp(n_in: int, n_hid: int, n_out: int, n_layer: int, act: type[nn.Module] = nn.LeakyReLU) -> nn.Sequential:
     """Creates a fully-connected network with no activation after the last layer.
     If `n_layer` is 0 then this corresponds to `nn.Linear(n_in, n_out)`.
     """
@@ -98,7 +97,7 @@ class GraphTransformer(nn.Module):
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
 
-    def forward(self, g: gd.Batch, cond: Optional[torch.Tensor]):
+    def forward(self, g: gd.Batch, cond: torch.Tensor | None):
         """Forward pass
 
         Parameters
@@ -249,12 +248,12 @@ class GraphTransformerGFN(nn.Module):
         # TODO: flag for this
         self._logZ = mlp(max(1, env_ctx.num_cond_dim), num_emb * 2, 1, 2)
 
-    def logZ(self, cond_info: Optional[torch.Tensor]):
+    def logZ(self, cond_info: torch.Tensor | None):
         if cond_info is None:
             return self._logZ(torch.ones((1, 1), device=self._logZ[0].weight.device))
         return self._logZ(cond_info)
 
-    def _make_cat(self, g: gd.Batch, emb: Dict[str, Tensor], action_types: list[GraphActionType]):
+    def _make_cat(self, g: gd.Batch, emb: dict[str, Tensor], action_types: list[GraphActionType]):
         return GraphActionCategorical(
             g,
             raw_logits=[self.mlps[t.cname](emb[self._action_type_to_graph_part[t]]) for t in action_types],
@@ -263,7 +262,7 @@ class GraphTransformerGFN(nn.Module):
             types=action_types,
         )
 
-    def forward(self, g: gd.Batch, cond: Optional[torch.Tensor]):
+    def forward(self, g: gd.Batch, cond: torch.Tensor | None):
         node_embeddings, graph_embeddings = self.transf(g, cond)
         # "Non-edges" are edges not currently in the graph that we could add
         if hasattr(g, "non_edge_index"):

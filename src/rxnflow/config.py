@@ -1,9 +1,9 @@
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
+
 from omegaconf import MISSING
 
 from gflownet import config
-from gflownet.config import OptimizerConfig, ReplayConfig, ConditionalsConfig
-
+from gflownet.config import ConditionalsConfig, OptimizerConfig, ReplayConfig
 from rxnflow.algo.config import AlgoConfig
 from rxnflow.models.config import ModelConfig
 from rxnflow.tasks.config import TasksConfig
@@ -68,6 +68,7 @@ class Config(config.Config):
     git_hash: str | None = None
     overwrite_existing_exp: bool = False
     env_dir: str = MISSING
+    pretrained_model_path: str | None = None
     algo: AlgoConfig = field(default_factory=AlgoConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     opt: OptimizerConfig = field(default_factory=OptimizerConfig)

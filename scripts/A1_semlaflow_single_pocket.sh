@@ -1,6 +1,6 @@
 DATA_DIR=???
 
-python scripts/_a1_semlaflow_train.py \
+python scripts/_a1_cgflow_train.py \
   --data_path ${DATA_DIR} \
   --dataset crossdock \
   --categorical_strategy auto-regressive \

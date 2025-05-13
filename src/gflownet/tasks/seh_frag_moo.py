@@ -1,5 +1,6 @@
 import pathlib
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import torch
@@ -33,19 +34,19 @@ def safe(f, x, default):
 
 
 def mol2mw(mols: list[RDMol], is_valid: list[bool], default=1000):
-    molwts = torch.tensor([safe(Descriptors.MolWt, i, default) for i, v in zip(mols, is_valid) if v])
+    molwts = torch.tensor([safe(Descriptors.MolWt, i, default) for i, v in zip(mols, is_valid, strict=False) if v])
     molwts = ((300 - molwts) / 700 + 1).clip(0, 1)  # 1 until 300 then linear decay to 0 until 1000
     return molwts
 
 
 def mol2sas(mols: list[RDMol], is_valid: list[bool], default=10):
-    sas = torch.tensor([safe(sascore.calculateScore, i, default) for i, v in zip(mols, is_valid) if v])
+    sas = torch.tensor([safe(sascore.calculateScore, i, default) for i, v in zip(mols, is_valid, strict=False) if v])
     sas = (10 - sas) / 9  # Turn into a [0-1] reward
     return sas
 
 
 def mol2qed(mols: list[RDMol], is_valid: list[bool], default=0):
-    return torch.tensor([safe(QED.qed, i, 0) for i, v in zip(mols, is_valid) if v])
+    return torch.tensor([safe(QED.qed, i, 0) for i, v in zip(mols, is_valid, strict=False) if v])
 
 
 aux_tasks = {"qed": mol2qed, "sa": mol2sas, "mw": mol2mw}
@@ -64,7 +65,7 @@ class SEHMOOTask(SEHTask):
     def __init__(
         self,
         cfg: Config,
-        wrap_model: Optional[Callable[[nn.Module], nn.Module]] = None,
+        wrap_model: Callable[[nn.Module], nn.Module] | None = None,
     ):
         super().__init__(cfg, wrap_model)
         self.cfg = cfg
@@ -86,7 +87,7 @@ class SEHMOOTask(SEHTask):
         )
         assert set(self.objectives) <= {"seh", "qed", "sa", "mw"} and len(self.objectives) == len(set(self.objectives))
 
-    def sample_conditional_information(self, n: int, train_it: int) -> Dict[str, Tensor]:
+    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
         cond_info = super().sample_conditional_information(n, train_it)
         pref_ci = self.pref_cond.sample(n)
         focus_ci = (
@@ -100,7 +101,7 @@ class SEHMOOTask(SEHTask):
         }
         return cond_info
 
-    def encode_conditional_information(self, steer_info: Tensor) -> Dict[str, Tensor]:
+    def encode_conditional_information(self, steer_info: Tensor) -> dict[str, Tensor]:
         """
         Encode conditional information at validation-time
         We use the maximum temperature beta for inference
@@ -138,7 +139,7 @@ class SEHMOOTask(SEHTask):
         }
 
     def relabel_condinfo_and_logrewards(
-        self, cond_info: Dict[str, Tensor], log_rewards: Tensor, obj_props: ObjectProperties, hindsight_idxs: Tensor
+        self, cond_info: dict[str, Tensor], log_rewards: Tensor, obj_props: ObjectProperties, hindsight_idxs: Tensor
     ):
         # TODO: we seem to be relabeling tensors in place, could that cause a problem?
         if self.focus_cond is None:
@@ -164,7 +165,7 @@ class SEHMOOTask(SEHTask):
         log_rewards = self.cond_info_to_logreward(cond_info, obj_props)
         return cond_info, log_rewards
 
-    def cond_info_to_logreward(self, cond_info: Dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
+    def cond_info_to_logreward(self, cond_info: dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
         """
         Compute the logreward from the object properties, which we interpret as each objective, and the conditional
         information
@@ -188,7 +189,7 @@ class SEHMOOTask(SEHTask):
 
         return LogScalar(clamped_logreward)
 
-    def compute_obj_properties(self, mols: List[RDMol]) -> Tuple[ObjectProperties, Tensor]:
+    def compute_obj_properties(self, mols: list[RDMol]) -> tuple[ObjectProperties, Tensor]:
         graphs = [bengio2021flow.mol2graph(i) for i in mols]
         assert len(graphs) == len(mols)
         is_valid = [i is not None for i in graphs]
@@ -196,7 +197,7 @@ class SEHMOOTask(SEHTask):
         if not any(is_valid):
             return ObjectProperties(torch.zeros((0, len(self.objectives)))), is_valid_t
         else:
-            flat_r: List[Tensor] = []
+            flat_r: list[Tensor] = []
             for obj in self.objectives:
                 if obj == "seh":
                     flat_r.append(super().compute_reward_from_graph(graphs))
@@ -333,7 +334,7 @@ class SEHMOOFragTrainer(SEHFragTrainer):
         if self.cfg.task.seh_moo.log_topk:
 
             class TopKMetricCB:
-                def on_validation_end(self, metrics: Dict[str, Any]):
+                def on_validation_end(self, metrics: dict[str, Any]):
                     top_k = parent._top_k_hook.finalize()
                     for i in range(len(top_k)):
                         metrics[f"topk_rewards_{i}"] = top_k[i]
@@ -356,7 +357,7 @@ class SEHMOOFragTrainer(SEHFragTrainer):
 
         return self._make_data_loader(src)
 
-    def train_batch(self, batch: gd.Batch, epoch_idx: int, batch_idx: int, train_it: int) -> Dict[str, Any]:
+    def train_batch(self, batch: gd.Batch, epoch_idx: int, batch_idx: int, train_it: int) -> dict[str, Any]:
         if self.task.focus_cond is not None:
             self.task.focus_cond.step_focus_model(batch, train_it)
         return super().train_batch(batch, epoch_idx, batch_idx, train_it)

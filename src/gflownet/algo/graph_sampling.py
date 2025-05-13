@@ -1,6 +1,5 @@
 import copy
 import warnings
-from typing import List, Optional
 
 import torch
 import torch.nn as nn
@@ -23,7 +22,7 @@ def relabel(g: Graph, ga: GraphAction):
     labeled 0-N, whereas GraphBuildingEnv.parent can return parents with e.g. a removed node that
     creates a gap in 0-N, leading to a faulty encoding of the graph.
     """
-    rmap = dict(zip(g.nodes, range(len(g.nodes))))
+    rmap = dict(zip(g.nodes, range(len(g.nodes)), strict=False))
     if not len(g) and ga.action == GraphActionType.AddNode:
         rmap[0] = 0  # AddNode can add to the empty graph, the source is still 0
     g = g.relabel_nodes(rmap)
@@ -68,7 +67,7 @@ class GraphSampler:
         self.correct_idempotent = correct_idempotent
         self.pad_with_terminal_state = pad_with_terminal_state
 
-    def sample_from_model(self, model: nn.Module, n: int, cond_info: Optional[Tensor], random_action_prob: float = 0.0):
+    def sample_from_model(self, model: nn.Module, n: int, cond_info: Tensor | None, random_action_prob: float = 0.0):
         """Samples a model in a minibatch
 
         Parameters
@@ -95,8 +94,8 @@ class GraphSampler:
         # This will be returned
         data = [{"traj": [], "reward_pred": None, "is_valid": True, "is_sink": []} for i in range(n)]
         # Let's also keep track of trajectory statistics according to the model
-        fwd_logprob: List[List[Tensor]] = [[] for _ in range(n)]
-        bck_logprob: List[List[Tensor]] = [[] for _ in range(n)]
+        fwd_logprob: list[list[Tensor]] = [[] for _ in range(n)]
+        bck_logprob: list[list[Tensor]] = [[] for _ in range(n)]
 
         graphs = [self.env.new() for _ in range(n)]
         done = [False for _ in range(n)]
@@ -129,7 +128,7 @@ class GraphSampler:
                 # Set the logits to some large value to have a uniform distribution
                 fwd_cat.logits = [
                     is_random_action[b][:, None] * torch.ones_like(i) * 100 + i * (1 - is_random_action[b][:, None])
-                    for i, b in zip(fwd_cat.logits, fwd_cat.batch)
+                    for i, b in zip(fwd_cat.logits, fwd_cat.batch, strict=False)
                 ]
             if self.sample_temp != 1:
                 sample_cat = copy.copy(fwd_cat)
@@ -137,10 +136,10 @@ class GraphSampler:
                 actions = sample_cat.sample()
             else:
                 actions = fwd_cat.sample()
-            graph_actions = [self.ctx.ActionIndex_to_GraphAction(g, a) for g, a in zip(torch_graphs, actions)]
+            graph_actions = [self.ctx.ActionIndex_to_GraphAction(g, a) for g, a in zip(torch_graphs, actions, strict=False)]
             log_probs = fwd_cat.log_prob(actions)
             # Step each trajectory, and accumulate statistics
-            for i, j in zip(not_done(range(n)), range(n)):
+            for i, j in zip(not_done(range(n)), range(n), strict=False):
                 fwd_logprob[i].append(log_probs[j].unsqueeze(0))
                 data[i]["traj"].append((graphs[i], graph_actions[j]))
                 bck_a[i].append(self.env.reverse(graphs[i], graph_actions[j]))
@@ -207,9 +206,9 @@ class GraphSampler:
 
     def sample_backward_from_graphs(
         self,
-        graphs: List[Graph],
-        model: Optional[nn.Module],
-        cond_info: Optional[Tensor],
+        graphs: list[Graph],
+        model: nn.Module | None,
+        cond_info: Tensor | None,
         random_action_prob: float = 0.0,
     ):
         """Sample a model's P_B starting from a list of graphs, or if the model is None, use a uniform distribution
@@ -270,11 +269,11 @@ class GraphSampler:
                 )
             bck_actions = bck_cat.sample()
             graph_bck_actions = [
-                self.ctx.ActionIndex_to_GraphAction(g, a, fwd=False) for g, a in zip(torch_graphs, bck_actions)
+                self.ctx.ActionIndex_to_GraphAction(g, a, fwd=False) for g, a in zip(torch_graphs, bck_actions, strict=False)
             ]
             bck_logprobs = bck_cat.log_prob(bck_actions)
 
-            for i, j in zip(not_done(range(n)), range(n)):
+            for i, j in zip(not_done(range(n)), range(n), strict=False):
                 if not done[i]:
                     g = graphs[i]
                     b_a = graph_bck_actions[j]

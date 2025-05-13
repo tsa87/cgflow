@@ -5,16 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cgflow"
 authors = [
-  {name = "XXX", email = "XXX"},
+  { name = "Tony Shen", email = "tony.z.shen@gmail.com" },
+  { name = "Seonghwan Seo", email = "shwan0106@gmail.com" },
 ]
 version = "0.0.1"
 readme = "README.md"
-classifiers = ["Operating System :: OS Independent", "Programming Language :: Python", "Programming Language :: Python :: 3"]
+classifiers = [
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+]
 requires-python = ">=3.11,<3.13"
 dependencies = [
   # torch, torch-geometric
-  "numpy==1.26.4",
-  "torch>=2.2.1,<=2.5.1",
+  "torch==2.5.1",
+  "numpy<2.0.0",
   "torch-geometric>=2.4.0",
   "torch-scatter>=2.1.2",
   "torch-sparse>=0.6.18",
@@ -27,20 +32,25 @@ dependencies = [
   "lightning>=2.2.1",
   "torchmetrics",
   "lmdb",
+  "deepspeed",
   # cheminfo&bioinfo
   "biotite==1.0.1",
   "biopython",
   "openbabel-wheel==3.1.1.20",
   "rdkit>=2023.9.4",
   # additional
-  "typing_extensions", # is it really required?
+  "typing_extensions",                                                                                # is it really required?
   "wandb",
   "tqdm",
+  "py3Dmol",
   "omegaconf",
   "pandas>=2.2.2",
-  "ruff>=0.8.4",
-  "unidock_tools @ git+https://github.com/dptech-corp/Uni-Dock.git@1.1.2#subdirectory=unidock_tools",
   "meeko",
+  "vina",
+  "pdb2pqr",
+  "unidock_tools @ git+https://github.com/dptech-corp/Uni-Dock.git@1.1.2#subdirectory=unidock_tools",
+  "pharmaconet @ git+https://github.com/SeonghwanSeo/PharmacoNet.git",
+  "AutoDockTools_py3 @ git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3",
 ]
 
 [project.optional-dependencies]
@@ -51,5 +61,22 @@ extra = [
   "py3Dmol",
   "posecheck @ git+https://github.com/cch1999/posecheck.git",
   "prolif==2.0.3",
-  "MDAnalysis==2.7.0"
+  "MDAnalysis==2.7.0",
 ]
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+[tool.ruff.lint]
+select = ["E", "F", "B", "UP", "T203", "I"]
+ignore = ["E501"]
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+
+[tool.basedpyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"

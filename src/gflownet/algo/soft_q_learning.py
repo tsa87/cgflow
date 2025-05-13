@@ -110,7 +110,7 @@ class SoftQLearning:
         torch_graphs = [self.ctx.graph_to_Data(i[0]) for tj in trajs for i in tj["traj"]]
         actions = [
             self.ctx.GraphAction_to_ActionIndex(g, a)
-            for g, a in zip(torch_graphs, [i[1] for tj in trajs for i in tj["traj"]])
+            for g, a in zip(torch_graphs, [i[1] for tj in trajs for i in tj["traj"]], strict=False)
         ]
         batch = self.ctx.collate(torch_graphs)
         batch.traj_lens = torch.tensor([len(i["traj"]) for i in trajs])
@@ -154,7 +154,7 @@ class SoftQLearning:
             log_policy = Q.logsoftmax()
             # in Eq (10) we have an expectation E_{a~q_a'}[exp(1/alpha Q(s,a))/q_a'(a)]
             # we rewrite the inner part `exp(a)/b` as `exp(a-log(b))` since we have the log_policy probabilities
-            soft_expectation = [Q_sa / self.alpha - logprob for Q_sa, logprob in zip(Q.logits, log_policy)]
+            soft_expectation = [Q_sa / self.alpha - logprob for Q_sa, logprob in zip(Q.logits, log_policy, strict=False)]
             # This allows us to more neatly just call logsumexp on the logits, and then multiply by alpha
             V_soft = self.alpha * Q.logsumexp(soft_expectation).detach()  # shape: (num_graphs,)
         else:

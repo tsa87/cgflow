@@ -1,6 +1,6 @@
 import abc
 from copy import deepcopy
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 import numpy as np
 import torch
@@ -25,7 +25,7 @@ class Conditional(abc.ABC, Generic[Tin, Tout]):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def transform(self, cond_info: Dict[str, Tensor], data: Tin) -> Tout:
+    def transform(self, cond_info: dict[str, Tensor], data: Tin) -> Tout:
         raise NotImplementedError()
 
     def encoding_size(self):
@@ -81,7 +81,7 @@ class TemperatureConditional(Conditional[LogScalar, LogScalar]):
         assert len(beta.shape) == 1, f"beta should be a 1D array, got {beta.shape}"
         return {"beta": torch.tensor(beta), "encoding": beta_enc}
 
-    def transform(self, cond_info: Dict[str, Tensor], logreward: LogScalar) -> LogScalar:
+    def transform(self, cond_info: dict[str, Tensor], logreward: LogScalar) -> LogScalar:
         assert len(logreward.shape) == len(
             cond_info["beta"].shape
         ), f"dangerous shape mismatch: {logreward.shape} vs {cond_info['beta'].shape}"
@@ -119,7 +119,7 @@ class MultiObjectiveWeightedPreferences(Conditional[ObjectProperties, LinScalar]
         preferences = torch.as_tensor(preferences).float()
         return {"preferences": preferences, "encoding": self.encode(preferences)}
 
-    def transform(self, cond_info: Dict[str, Tensor], flat_reward: ObjectProperties) -> LinScalar:
+    def transform(self, cond_info: dict[str, Tensor], flat_reward: ObjectProperties) -> LinScalar:
         scalar_reward = (flat_reward * cond_info["preferences"]).sum(1)
         assert len(scalar_reward.shape) == 1, f"scalar_reward should be a 1D array, got {scalar_reward.shape}"
         return LinScalar(scalar_reward)
@@ -192,7 +192,7 @@ class FocusRegionConditional(Conditional[tuple[ObjectProperties, LogScalar], Log
             )
         self.valid_focus_dirs = valid_focus_dirs
 
-    def sample(self, n: int, train_it: Optional[int] = None):
+    def sample(self, n: int, train_it: int | None = None):
         train_it = train_it or 0
         rng = get_worker_rng()
         if self.fixed_focus_dirs is not None:
@@ -228,7 +228,7 @@ class FocusRegionConditional(Conditional[tuple[ObjectProperties, LogScalar], Log
             else conditional
         )
 
-    def transform(self, cond_info: Dict[str, Tensor], data: tuple[ObjectProperties, LogScalar]) -> LogScalar:
+    def transform(self, cond_info: dict[str, Tensor], data: tuple[ObjectProperties, LogScalar]) -> LogScalar:
         flat_rewards, scalar_logreward = data
         focus_coef, in_focus_mask = metrics.compute_focus_coef(
             flat_rewards, cond_info["focus_dir"], self.cfg.focus_cosim, self.cfg.focus_limit_coef

@@ -1,0 +1,22 @@
+project: "cgflow-update"
+program: ./scripts/analysis2_fm_nsteps.py
+name: "rebuttal-fm-nsteps"
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - rebuttal-fm-nsteps # group
+  - ./logs/ana2-fm-nsteps/ # storage
+  - ../data/envs/stock/ # env dir
+  - ../data/experiments/LIT-PCBA/ # pocket dir
+  - ../weights/crossdocked2020_till_end.ckpt # ckpt
+
+method: grid
+parameters:
+  protein:
+    value: ALDH1
+  seed:
+    values: [0, 1, 2, 3]
+  num_inference_steps:
+    values: [10, 20, 40, 60, 80, 100]

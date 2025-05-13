@@ -1,14 +1,14 @@
-project: "cgflow-litpcba"
+project: "cgflow"
 program: ./scripts/exp2_finetune.py
-name: "cgflow-finetune-aldh1"
+name: "finetune-localopt-aldh1"
 
 command:
   - ${env}
   - python
   - ${program}
-  - localopt # prefix
-  - ./logs/exp3-finetune/ # storage
-  - ../data/envs/catalog # env dir
+  - finetune # group
+  - ./logs/exp2-finetune/ # storage
+  - ../data/envs/catalog/ # env dir
   - ../data/experiments/LIT-PCBA/ # pocket
   - ../weights/finetune_aldh1_epoch100.ckpt # ckpt
 
@@ -18,7 +18,5 @@ parameters:
     value: ALDH1
   seed:
     values: [0, 1, 2]
-  redocking:
-    value: False
   num_inference_steps:
     value: 80

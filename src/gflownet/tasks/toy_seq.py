@@ -1,5 +1,4 @@
 import socket
-from typing import Dict, List, Tuple
 
 import torch
 from torch import Tensor
@@ -19,7 +18,7 @@ class ToySeqTask(GFNTask):
 
     def __init__(
         self,
-        seqs: List[str],
+        seqs: list[str],
         cfg: Config,
     ) -> None:
         self.seqs = seqs
@@ -27,13 +26,13 @@ class ToySeqTask(GFNTask):
         self.num_cond_dim = self.temperature_conditional.encoding_size()
         self.norm = cfg.algo.max_len / min(map(len, seqs))
 
-    def sample_conditional_information(self, n: int, train_it: int) -> Dict[str, Tensor]:
+    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
         return self.temperature_conditional.sample(n)
 
-    def cond_info_to_logreward(self, cond_info: Dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
+    def cond_info_to_logreward(self, cond_info: dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
         return LogScalar(self.temperature_conditional.transform(cond_info, to_logreward(obj_props)))
 
-    def compute_obj_properties(self, objs: List[str]) -> Tuple[ObjectProperties, Tensor]:
+    def compute_obj_properties(self, objs: list[str]) -> tuple[ObjectProperties, Tensor]:
         rs = torch.tensor([sum([s.count(p) for p in self.seqs]) for s in objs]).float() / self.norm
         return ObjectProperties(rs[:, None]), torch.ones(len(objs), dtype=torch.bool)
 

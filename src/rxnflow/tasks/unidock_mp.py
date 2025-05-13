@@ -1,12 +1,13 @@
-from pathlib import Path
-import numpy as np
 from functools import cached_property
-from rdkit.Chem import rdMolDescriptors, Lipinski, Crippen
-from rdkit import Chem
+from pathlib import Path
 
-from rxnflow.config import Config, init_empty
+import numpy as np
+from rdkit import Chem
+from rdkit.Chem import Crippen, Lipinski, rdMolDescriptors
+
 from rxnflow.communication.reward import RewardModule
 from rxnflow.communication.trainer import MolCommunicationTrainer
+from rxnflow.config import Config, init_empty
 from rxnflow.utils.unidock import unidock_scores
 
 

@@ -4,7 +4,8 @@ import os
 import pathlib
 import shutil
 import time
-from typing import Any, Callable, Dict, List, Optional, Protocol
+from collections.abc import Callable
+from typing import Any, Protocol
 
 import numpy as np
 import torch
@@ -44,7 +45,7 @@ class GFNTrainer:
             The hyperparameters for the trainer.
         """
         self.print_config = print_config
-        self.to_terminate: List[Closable] = []
+        self.to_terminate: list[Closable] = []
         # self.setup should at least set these up:
         self.training_data: Dataset
         self.test_data: Dataset
@@ -52,7 +53,7 @@ class GFNTrainer:
         # `sampling_model` is used by the data workers to sample new objects from the model. Can be
         # the same as `model`.
         self.sampling_model: nn.Module
-        self.replay_buffer: Optional[ReplayBuffer]
+        self.replay_buffer: ReplayBuffer | None
         self.env: GraphBuildingEnv
         self.ctx: GraphBuildingEnvContext
         self.task: GFNTask
@@ -76,8 +77,8 @@ class GFNTrainer:
         # Print the loss every `self.print_every` iterations
         self.print_every = self.cfg.print_every
         # These hooks allow us to compute extra quantities when sampling data
-        self.sampling_hooks: List[Callable] = []
-        self.valid_sampling_hooks: List[Callable] = []
+        self.sampling_hooks: list[Callable] = []
+        self.valid_sampling_hooks: list[Callable] = []
         # Will check if parameters are finite at every iteration (can be costly)
         self._validate_parameters = False
 
@@ -217,7 +218,7 @@ class GFNTrainer:
             src.add_sampling_hook(hook)
         return self._make_data_loader(src)
 
-    def train_batch(self, batch: gd.Batch, epoch_idx: int, batch_idx: int, train_it: int) -> Dict[str, Any]:
+    def train_batch(self, batch: gd.Batch, epoch_idx: int, batch_idx: int, train_it: int) -> dict[str, Any]:
         tick = time.time()
         self.model.train()
         try:
@@ -240,7 +241,7 @@ class GFNTrainer:
         info["train_time"] = time.time() - tick
         return {k: v.item() if hasattr(v, "item") else v for k, v in info.items()}
 
-    def evaluate_batch(self, batch: gd.Batch, epoch_idx: int = 0, batch_idx: int = 0) -> Dict[str, Any]:
+    def evaluate_batch(self, batch: gd.Batch, epoch_idx: int = 0, batch_idx: int = 0) -> dict[str, Any]:
         tick = time.time()
         self.model.eval()
         loss, info = self.algo.compute_batch_losses(self.model, batch)
@@ -270,11 +271,11 @@ class GFNTrainer:
         num_training_steps = self.cfg.num_training_steps
         logger.info("Starting training")
         start_time = time.time()
-        for it, batch in zip(range(start, 1 + num_training_steps), cycle(train_dl)):
+        for it, batch in zip(range(start, 1 + num_training_steps), cycle(train_dl), strict=False):
             # the memory fragmentation or allocation keeps growing, how often should we clean up?
             # is changing the allocation strategy helpful?
 
-            if it % 32 == 0:
+            if it % 16 == 0:
                 gc.collect()
                 torch.cuda.empty_cache()
             epoch_idx = it // epoch_length
@@ -311,7 +312,7 @@ class GFNTrainer:
             logger.info(f"Generating final {num_final_gen_steps} batches ...")
             for it, batch in zip(
                 range(num_training_steps + 1, num_training_steps + num_final_gen_steps + 1),
-                cycle(final_dl),
+                cycle(final_dl), strict=False,
             ):
                 if hasattr(batch, "extra_info"):
                     for k, v in batch.extra_info.items():

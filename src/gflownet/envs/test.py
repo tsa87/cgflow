@@ -98,7 +98,7 @@ def main(smi, n_steps):
         print(a.action, a.source, a.target, a.value)
     graphs = [ctx.graph_to_Data(i) for i, _ in traj]
     traj_batch = ctx.collate(graphs)
-    actions = [ctx.GraphAction_to_ActionIndex(g, a) for g, a in zip(graphs, [i[1] for i in traj])]
+    actions = [ctx.GraphAction_to_ActionIndex(g, a) for g, a in zip(graphs, [i[1] for i in traj], strict=False)]
 
     # Train to overfit
     for i in tqdm(range(n_steps)):

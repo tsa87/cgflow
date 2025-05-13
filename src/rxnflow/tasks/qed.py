@@ -1,19 +1,19 @@
 from rdkit.Chem import Mol as RDMol
 from torch import Tensor
 
-from rxnflow.base import RxnFlowTrainer, BaseTask
-from rxnflow.utils.chem_metrics import mol2qed
+from rxnflow.base import BaseTask, RxnFlowTrainer
 from rxnflow.config import Config, init_empty
+from rxnflow.utils.chem_metrics import mol2qed
 
 
 class QEDTask(BaseTask):
-    def compute_rewards(self, objs: list[RDMol]) -> Tensor:
-        return mol2qed(objs).reshape(-1, 1)
+    def compute_rewards(self, mols: list[RDMol]) -> Tensor:
+        return mol2qed(mols).reshape(-1, 1)
 
 
 class QEDTrainer(RxnFlowTrainer):  # For online training
     def setup_task(self):
-        self.task: QEDTask = QEDTask(cfg=self.cfg, wrap_model=self._wrap_for_mp)
+        self.task: QEDTask = QEDTask(cfg=self.cfg)
 
 
 if __name__ == "__main__":

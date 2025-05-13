@@ -1,5 +1,4 @@
 import socket
-from typing import Dict, List, Tuple
 
 import torch
 from rdkit import Chem
@@ -15,14 +14,14 @@ from gflownet.online_trainer import StandardOnlineTrainer
 class MakeRingsTask(GFNTask):
     """A toy task where the reward is the number of rings in the molecule."""
 
-    def sample_conditional_information(self, n: int, train_it: int) -> Dict[str, Tensor]:
+    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
         return {"beta": torch.ones(n), "encoding": torch.ones(n, 1)}
 
-    def cond_info_to_logreward(self, cond_info: Dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
+    def cond_info_to_logreward(self, cond_info: dict[str, Tensor], obj_props: ObjectProperties) -> LogScalar:
         scalar_logreward = torch.as_tensor(obj_props).squeeze().clamp(min=1e-30).log()
         return LogScalar(scalar_logreward.flatten())
 
-    def compute_obj_properties(self, mols: List[RDMol]) -> Tuple[ObjectProperties, Tensor]:
+    def compute_obj_properties(self, mols: list[RDMol]) -> tuple[ObjectProperties, Tensor]:
         rs = torch.tensor([m.GetRingInfo().NumRings() for m in mols]).float()
         return ObjectProperties(rs.reshape((-1, 1))), torch.ones(len(mols)).bool()
 
