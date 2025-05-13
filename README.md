@@ -2,7 +2,11 @@
 
 This repository contains the updated codebase for our ICML 2025 paper: **"Compositional Flows for 3D Molecule and Synthesis Pathway Co-design" (CGFlow)**. For reproducing results reported in the paper, please refer to the [submission version](https://github.com/tsa87/cgflow/releases/tag/v0-icml25-submission).
 
-CGFlow introduces Compositional Generative Flows, a framework extending flow matching to generate compositional objects with continuous states. We apply CGFlow to synthesizable drug design by jointly designing a molecule’s synthetic pathway and its 3D binding pose.
+CGFlow introduces Compositional Generative Flows, a framework extending flow matching to generate compositional objects with continuous states. We apply CGFlow to synthesizable drug design by jointly designing a molecule's synthetic pathway and its 3D binding pose.
+
+<p align="center">
+  <img src="assets/appendix-trajectory.png" alt="CGFlow Overview" width="600"/>
+</p>
 
 ---
 
