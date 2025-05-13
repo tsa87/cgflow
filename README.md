@@ -85,10 +85,12 @@ tar -xzvf stock.tar.gz
 ### 1. Train General State Flow (Pose Prediction)
 
 Train the state flow model for pose prediction:
-
 ```bash
 sh scripts/A_semlaflow_train_crossdocked.sh
 ```
+Note: This script trains pose prediction on Plinder dataset rather than the CrossDocked dataset as done in the paper experiments.
+Plinder is a larger dataset, and we used unbiased pocket extraction. Therefore the pose prediction performance is improved compared to reported result.
+We'll release the pretrained checkpoint for Plinder training soon.
 
 For reproducing paper results, use pretrained model weights:
 ```bash
