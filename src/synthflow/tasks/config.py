@@ -74,9 +74,10 @@ class PocketConditionalConfig:
         Proxy Key from PharmacoNet
     """
 
-    proxy: tuple[str, str, str] = ("TacoGFN_Reward", "QVina", "CrossDocked2020")
-    pocket_dir: str = "./data/experiments/CrossDocked2020/crossdocked_pocket10/"
-    train_key: str = "./data/experiments/CrossDocked2020/train_keys.csv"
+    proxy: tuple[str, str,
+                 str] = ("TacoGFN_Reward", "QVina", "CrossDocked2020")
+    pocket_dir: str = "./data/CrossDocked2020/"
+    train_key: str = "./data/CrossDocked2020/train_keys.csv"
 
 
 @dataclass
@@ -84,4 +85,5 @@ class TasksConfig:
     moo: MOOTaskConfig = field(default_factory=MOOTaskConfig)
     constraint: ConstraintConfig = field(default_factory=ConstraintConfig)
     docking: DockingTaskConfig = field(default_factory=DockingTaskConfig)
-    pocket_conditional: PocketConditionalConfig = field(default_factory=PocketConditionalConfig)
+    pocket_conditional: PocketConditionalConfig = field(
+        default_factory=PocketConditionalConfig)

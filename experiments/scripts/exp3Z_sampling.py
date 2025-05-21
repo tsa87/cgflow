@@ -11,7 +11,7 @@ from tqdm import tqdm
 from synthflow.config import Config, init_empty
 from synthflow.pocket_conditional.sampler import PocketConditionalSampler
 
-POCKET_DIR = Path("./data/experiments/CrossDocked2020/crossdocked_pocket10/")
+POCKET_DIR = Path("./data/CrossDocked2020/")
 TEST_KEY_PATH = Path("./data/experiments/CrossDocked2020/test_keys.csv")
 
 

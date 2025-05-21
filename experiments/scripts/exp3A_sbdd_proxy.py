@@ -21,8 +21,8 @@ if __name__ == "__main__":
     config.cgflow.use_predicted_pose = True
     config.cgflow.num_inference_steps = 100
 
-    config.task.pocket_conditional.pocket_dir = "./data/experiments/CrossDocked2020/crossdocked_pocket10/"
-    config.task.pocket_conditional.train_key = "./data/experiments/CrossDocked2020/train_keys.csv"
+    config.task.pocket_conditional.pocket_dir = "./data/CrossDocked2020/"
+    config.task.pocket_conditional.train_key = "./data/CrossDocked2020/train_keys.csv"
 
     trainer = Proxy_MultiPocket_Trainer(config)
     trainer.run()

@@ -536,26 +536,6 @@ class MolecularCFM(L.LightningModule):
         self.builder = builder
         self.ema_gen = ema_gen if use_ema else None
 
-        # Anything else passed into kwargs will also be saved
-        # hparams = {
-        #     "lr": lr,
-        #     "coord_scale": coord_scale,
-        #     "dist_loss_weight": dist_loss_weight,
-        #     "type_loss_weight": type_loss_weight,
-        #     "bond_loss_weight": bond_loss_weight,
-        #     "type_strategy": type_strategy,
-        #     "bond_strategy": bond_strategy,
-        #     "self_condition": self_condition,
-        #     "distill": distill,
-        #     "lr_schedule": lr_schedule,
-        #     "sampling_strategy": sampling_strategy,
-        #     "use_ema": use_ema,
-        #     "compile_model": compile_model,
-        #     "warm_up_steps": warm_up_steps,
-        #     **gen.hparams,
-        #     **integrator.hparams,
-        #     **kwargs,
-        # }
         self.save_hyperparameters(vars(args))
 
         stability_metrics = {
