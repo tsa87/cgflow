@@ -104,8 +104,8 @@ if __name__ == "__main__":
         # "./weights/crossdocked2020_no_overlap.ckpt",
         "./weights/crossdocked2020.ckpt",
         # "./weights/plinder.ckpt",
-        f"./experiments/data/LIT-PCBA/{target}/protein.pdb",
-        f"./experiments/data/LIT-PCBA/{target}/ligand.mol2",
+        f"./data/experiments/LIT-PCBA/{target}/protein.pdb",
+        f"./data/experiments/LIT-PCBA/{target}/ligand.mol2",
         "cuda",
     )
 

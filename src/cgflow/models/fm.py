@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import LinearLR, OneCycleLR
 from torchmetrics import MetricCollection
 
+import argparse
 import cgflow.util.complex_metrics as ComplexMetrics
 import cgflow.util.functional as smolF
 import cgflow.util.loss as smolL
@@ -471,6 +472,7 @@ class MolecularCFM(L.LightningModule):
         train_smiles: list[str] | None = None,
         type_mask_index: int | None = None,
         bond_mask_index: int | None = None,
+        args: argparse.Namespace | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -535,26 +537,26 @@ class MolecularCFM(L.LightningModule):
         self.ema_gen = ema_gen if use_ema else None
 
         # Anything else passed into kwargs will also be saved
-        hparams = {
-            "lr": lr,
-            "coord_scale": coord_scale,
-            "dist_loss_weight": dist_loss_weight,
-            "type_loss_weight": type_loss_weight,
-            "bond_loss_weight": bond_loss_weight,
-            "type_strategy": type_strategy,
-            "bond_strategy": bond_strategy,
-            "self_condition": self_condition,
-            "distill": distill,
-            "lr_schedule": lr_schedule,
-            "sampling_strategy": sampling_strategy,
-            "use_ema": use_ema,
-            "compile_model": compile_model,
-            "warm_up_steps": warm_up_steps,
-            **gen.hparams,
-            **integrator.hparams,
-            **kwargs,
-        }
-        self.save_hyperparameters(hparams)
+        # hparams = {
+        #     "lr": lr,
+        #     "coord_scale": coord_scale,
+        #     "dist_loss_weight": dist_loss_weight,
+        #     "type_loss_weight": type_loss_weight,
+        #     "bond_loss_weight": bond_loss_weight,
+        #     "type_strategy": type_strategy,
+        #     "bond_strategy": bond_strategy,
+        #     "self_condition": self_condition,
+        #     "distill": distill,
+        #     "lr_schedule": lr_schedule,
+        #     "sampling_strategy": sampling_strategy,
+        #     "use_ema": use_ema,
+        #     "compile_model": compile_model,
+        #     "warm_up_steps": warm_up_steps,
+        #     **gen.hparams,
+        #     **integrator.hparams,
+        #     **kwargs,
+        # }
+        self.save_hyperparameters(vars(args))
 
         stability_metrics = {
             "atom-stability": Metrics.AtomStability(),

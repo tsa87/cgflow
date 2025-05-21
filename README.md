@@ -180,3 +180,13 @@ If you use this work, please cite:
   url={https://openreview.net/forum?id=N8cPv95zOU}
 }
 ```
+
+
+## Instructions for Public Release
+```bash
+cat .gitignore > exclude.txt
+echo '.git/*' >> exclude.txt
+echo '.experimental/*' >> exclude.txt
+rsync -av --exclude-from=exclude.txt . ../cgflow/
+```
+

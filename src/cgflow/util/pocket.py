@@ -635,7 +635,7 @@ class PocketComplex:
 
     @property
     def seq_length(self) -> int:
-        return self.holo.res_length + len(self.ligand)
+        return len(self.holo.coords) + len(self.ligand.coords)
 
     @property
     def ligand_length(self) -> int:

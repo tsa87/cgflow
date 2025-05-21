@@ -85,7 +85,6 @@ class SmolDM(L.LightningDataModule):
             batch_sampler=sampler,
             num_workers=self._num_workers,
             pin_memory=True,
-            prefetch_factor=4,
             collate_fn=partial(self._collate, dataset="train"),
         )
         return dataloader
@@ -100,7 +99,6 @@ class SmolDM(L.LightningDataModule):
             shuffle=False,
             batch_sampler=sampler,
             num_workers=self._num_workers,
-            prefetch_factor=4,
             collate_fn=partial(self._collate, dataset="val"),
         )
         return dataloader
@@ -115,7 +113,6 @@ class SmolDM(L.LightningDataModule):
             shuffle=False,
             batch_sampler=sampler,
             num_workers=self._num_workers,
-            prefetch_factor=4,
             collate_fn=partial(self._collate, dataset="test"),
         )
         return dataloader

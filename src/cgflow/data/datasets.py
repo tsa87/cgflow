@@ -70,7 +70,7 @@ class LMDBSmolDataset(ABC, torch.utils.data.Dataset):
             'inf')
 
         self.keys = []
-        with open(key_path) as f:
+        with open(key_path, 'r') as f:
             for line in f:
                 self.keys.append(line.strip())
         self.transform = transform
@@ -82,8 +82,29 @@ class LMDBSmolDataset(ABC, torch.utils.data.Dataset):
                              readahead=False,
                              max_readers=512)
 
+        self.length_path = Path(self.lmdb_path) / 'lengths.pkl'
+        if self.length_path.exists():
+            self.lengths = pickle.load(open(self.length_path, 'rb'))
+            assert len(self.lengths) == len(self.keys)
+        else:
+            self.lengths = []
+            for i in tqdm(range(len(self.keys))):
+                with self.env.begin(write=False) as txn:
+                    value = txn.get(self.keys[i].encode('utf-8'))
+                    self.lengths.append(len(value) * 0.009)
+                # Instead of acutally loading the object which takes a long time -
+                # We'll just directly estimate the length of object based on the number
+                # of bytes
+                # item = self.__getitem__(i)
+                # self.lengths.append(item.seq_length)
+                # print(f"{len(item.to_bytes())} {item.seq_length}")
+
         # TODO: We can fill this with smiles here if we wish to compute novelty
         self.smiles = []
+
+    @property
+    def bytes_per_length(self):
+        raise NotImplementedError("This should be implemented by the subclass")
 
     @property
     def hparams(self):
@@ -149,6 +170,10 @@ class PocketComplexDataset(SmolDataset):
 
 
 class LMDBPocketComplexDataset(LMDBSmolDataset):
+
+    @property
+    def bytes_per_length(self):
+        return 0.009
 
     def __getitem__(self, item):
         try:
