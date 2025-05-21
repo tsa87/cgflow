@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
         config = init_empty(Config())
         config.log_dir = log_dir
-        config.env_dir = "./data/envs/real"
+        config.env_dir = "./experiments/data/envs/real"
         config.overwrite_existing_exp = True
         config.print_every = 10
 

@@ -4,13 +4,12 @@ from synthflow.config import Config, init_empty
 
 if __name__ == "__main__":
     torch.set_float32_matmul_precision("medium")
-
     """Example of how this trainer can be run"""
     config = init_empty(Config())
     config.num_training_steps = 100
     config.print_every = 1
     config.log_dir = "./logs/debug-sbdd/"
-    config.env_dir = "./data/envs/stock"
+    config.env_dir = "./data/stock"
     config.overwrite_existing_exp = True
 
     config.cgflow.ckpt_path = "./weights/crossdocked2020_till_end.ckpt"

@@ -64,7 +64,7 @@ unzip plinder_15A.zip
 ### 2. LIT-PCBA Pocket Data
 
 ```bash
-cd experiments
+cd experiments/data
 curl -L -o LIT-PCBA.tar.gz https://figshare.com/ndownloader/files/54411395
 tar -xzvf LIT-PCBA.tar.gz
 ```
@@ -122,7 +122,8 @@ wandb agent <sweep-id>
 1. Get `crossdocked_pocket10.tar.gz` and `split_by_name.pt` from [here](https://drive.google.com/drive/folders/1CzwxmTpjbrt83z_wBzcQncq84OVDPurM)
 2. Extract dataset:
 ```bash
-tar -xzvf crossdocked_pocket10.tar.gz
+# we do not need the sdf files
+tar -xzvf crossdocked_pocket10.tar.gz --exclude='*.sdf'
 mv crossdocked_pocket10 experiments/data/CrossDocked2020/
 ```
 

@@ -10,7 +10,10 @@ from synthflow.utils import unidock
 def _run_redocking(self: BaseDockingTask, mols: list[Chem.Mol]) -> list[float]:
     # unidock redocking
     try:
-        res = unidock.docking(mols, self.protein_path, self.center, search_mode="balance")
+        res = unidock.docking(mols,
+                              self.protein_path,
+                              self.center,
+                              search_mode="balance")
     except Exception:
         return [0.0] * len(mols)
     output_result_path = self.save_dir / f"oracle{self.oracle_idx}_redock.sdf"
@@ -98,12 +101,12 @@ if __name__ == "__main__":
     config = init_empty(Config())
     config.print_every = 1
     config.log_dir = "./logs/debug-cl/"
-    config.env_dir = "./data/envs/stock"
+    config.env_dir = "./data/stock"
     config.overwrite_existing_exp = True
 
     config.cgflow.ckpt_path = "./weights/crossdocked_till_end.ckpt"
-    config.task.docking.protein_path = "./data/experiments/examples/6oim_protein.pdb"
-    config.task.docking.ref_ligand_path = "./data/experiments/examples/6oim_ligand.pdb"
+    config.task.docking.protein_path = "./experiments/data/examples/6oim_protein.pdb"
+    config.task.docking.ref_ligand_path = "./experiments/data/examples/6oim_ligand.pdb"
 
     trial = UniDockVina_MOOTrainer(config)
     trial.run()

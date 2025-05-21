@@ -13,7 +13,6 @@ from synthflow.base.trainer import RxnFlow3DTrainer
 from synthflow.config import Config
 from synthflow.pocket_conditional.affinity import pmnet_proxy
 from synthflow.pocket_conditional.env import SynthesisEnvContext3D_pocket_conditional
-
 """
 Summary
 - ProxyTask: Base Class
@@ -27,8 +26,10 @@ class ProxyTask(BaseTask):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.objectives = cfg.task.moo.objectives
-        self.proxy: BaseProxy = self._load_task_models(cfg.task.pocket_conditional.proxy)
-        self.reward_function = pmnet_proxy.get_reward_function(self.proxy, self.objectives)
+        self.proxy: BaseProxy = self._load_task_models(
+            cfg.task.pocket_conditional.proxy)
+        self.reward_function = pmnet_proxy.get_reward_function(
+            self.proxy, self.objectives)
         self.last_reward: dict[str, Tensor] = {}  # For Logging
         self.index_path = Path(cfg.log_dir) / "index.csv"
         self.save_dir = Path(cfg.log_dir) / "pose/"
@@ -44,14 +45,17 @@ class ProxyTask(BaseTask):
 
     def _load_task_models(self, proxy_arg: tuple[str, str, str]) -> BaseProxy:
         proxy_model, proxy_type, proxy_dataset = proxy_arg
-        proxy = get_docking_proxy(proxy_model, proxy_type, proxy_dataset, None, self.cfg.device)
+        proxy = get_docking_proxy(proxy_model, proxy_type, proxy_dataset, None,
+                                  self.cfg.device)
         return proxy
 
-    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
+    def sample_conditional_information(self, n: int,
+                                       train_it: int) -> dict[str, Tensor]:
         ctx: SynthesisEnvContext3D_pocket_conditional = get_worker_env("ctx")
         cond_info = self.temperature_conditional.sample(n)
         pocket_cond = ctx._tmp_pocket_cond.reshape(1, -1).repeat(n, 1)
-        cond_info["encoding"] = torch.cat([cond_info["encoding"], pocket_cond], dim=1)
+        cond_info["encoding"] = torch.cat([cond_info["encoding"], pocket_cond],
+                                          dim=1)
         return cond_info
 
     def save_pose(self, mols: list[RDMol]):
@@ -72,8 +76,10 @@ class Proxy_MultiPocket_Task(ProxyTask):
         with open(cfg.task.pocket_conditional.train_key) as f:
             for ln in f.readlines():
                 filename, pocket_pdb_key = ln.strip().split(",")
-                self.pocket_pdb_to_files.setdefault(pocket_pdb_key, []).append(filename)
+                self.pocket_pdb_to_files.setdefault(pocket_pdb_key,
+                                                    []).append(filename)
         self.pocket_pdbs: list[str] = list(self.pocket_pdb_to_files.keys())
+
         assert set(self.pocket_pdbs) <= self.proxy._cache.keys()
         random.shuffle(self.pocket_pdbs)
 
@@ -84,10 +90,12 @@ class Proxy_MultiPocket_Task(ProxyTask):
 
     def _load_task_models(self, proxy_arg: tuple[str, str, str]) -> BaseProxy:
         proxy_model, proxy_type, proxy_dataset = proxy_arg
-        proxy = get_docking_proxy(proxy_model, proxy_type, proxy_dataset, "train", self.cfg.device)
+        proxy = get_docking_proxy(proxy_model, proxy_type, proxy_dataset,
+                                  "train", self.cfg.device)
         return proxy
 
-    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
+    def sample_conditional_information(self, n: int,
+                                       train_it: int) -> dict[str, Tensor]:
         ctx: SynthesisEnvContext3D_pocket_conditional = get_worker_env("ctx")
         # set next pocket
         pocket_pdb = self.pocket_pdbs[train_it % len(self.pocket_pdbs)]
@@ -150,5 +158,6 @@ class Proxy_MultiPocket_Trainer(RxnFlow3DTrainer):
 
     def log(self, info, index, key):
         for obj in self.task.objectives:
-            info[f"sampled_{obj}_avg"] = self.task.sample_reward_info[obj].mean().item()
+            info[f"sampled_{obj}_avg"] = self.task.sample_reward_info[
+                obj].mean().item()
         super().log(info, index, key)

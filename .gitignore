@@ -11,6 +11,8 @@ experiments/data/complex/*
 experiments/analysis/
 experiments/LIT-PCBA/*
 unidock_2025*
+experiments/data/CrossDocked2020/
+experiments/data/LIT-PCBA/
 
 # semlaflow
 .gvp_cache/
@@ -21,6 +23,8 @@ tony/v1/temp/
 result/
 evaluation_results/
 
+# pharmaconet
+PharmacoNet/
 
 # package
 build/

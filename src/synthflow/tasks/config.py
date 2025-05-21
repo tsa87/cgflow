@@ -75,8 +75,8 @@ class PocketConditionalConfig:
     """
 
     proxy: tuple[str, str, str] = ("TacoGFN_Reward", "QVina", "CrossDocked2020")
-    pocket_dir: str = "./data/experiments/CrossDocked2020/crossdocked_pocket10/"
-    train_key: str = "./data/experiments/CrossDocked2020/train_keys.csv"
+    pocket_dir: str = "./experiments/data/CrossDocked2020/"
+    train_key: str = "./experiments/data/CrossDocked2020/train_keys.csv"
 
 
 @dataclass

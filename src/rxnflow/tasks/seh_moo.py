@@ -18,7 +18,8 @@ aux_tasks = {"qed": mol2qed, "mw": mol2mw, "sa": mol2sascore}
 class SEHMOOTask(SEHTask):
     is_moo = True
 
-    def __init__(self, cfg: Config, wrap_model: Callable[[nn.Module], nn.Module]):
+    def __init__(self, cfg: Config, wrap_model: Callable[[nn.Module],
+                                                         nn.Module]):
         super().__init__(cfg, wrap_model)
         assert set(self.objectives) <= {"seh", "qed", "mw", "sa"}
 
@@ -36,13 +37,15 @@ class SEHMOOTask(SEHTask):
 
     def compute_reward_from_graph(self, graphs: list[gd.Data]) -> Tensor:
         batch = gd.Batch.from_data_list([i for i in graphs if i is not None])
-        batch.to(self.models["seh"].device if hasattr(self.models["seh"], "device") else get_worker_device())
-        preds = self.models["seh"](batch).reshape((-1,)).data.cpu() / 8
+        batch.to(self.models["seh"].device if hasattr(
+            self.models["seh"], "device") else get_worker_device())
+        preds = self.models["seh"](batch).reshape((-1, )).data.cpu() / 8
         preds[preds.isnan()] = 0
-        return preds.clip(1e-4, 100).reshape((-1,))
+        return preds.clip(1e-4, 100).reshape((-1, ))
 
 
 class SEHMOOTrainer(RxnFlowTrainer):
+
     def set_default_hps(self, base: Config):
         super().set_default_hps(base)
         base.algo.sampling_tau = 0.95
@@ -60,7 +63,7 @@ if __name__ == "__main__":
     config.num_workers_retrosynthesis = 4
     config.num_training_steps = 10000
     config.log_dir = "./logs/debug-seh-qed/"
-    config.env_dir = "./data/envs/stock"
+    config.env_dir = "./data/stock"
     config.task.moo.objectives = ["seh", "qed"]
     config.overwrite_existing_exp = True
     config.algo.action_subsampling.sampling_ratio = 0.01
