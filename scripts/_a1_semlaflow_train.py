@@ -1,8 +1,4 @@
 import os
-
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-os.environ["TORCH_USE_CUDA_DSA"] = "1"
-
 import argparse
 
 import lightning as L
@@ -36,6 +32,7 @@ DEFAULT_MAX_ATOMS = np.inf
 DEFAULT_POCKET_N_LAYERS = 4
 DEFAULT_POCKET_D_INV = 256
 
+DEFAULT_SEMELA_VERSION = "v1"
 DEFAULT_POCKET_LOCAL_CONNECTIONS = None
 DEFAULT_POCKET_VIRTUAL_NODES = None
 DEFAULT_LIGAND_LOCAL_CONNECTIONS = None
@@ -217,6 +214,9 @@ if __name__ == "__main__":
     parser.add_argument("--pocket_d_inv",
                         type=int,
                         default=DEFAULT_POCKET_D_INV)
+    parser.add_argument("--semla_version",
+                        type=str,
+                        default=DEFAULT_SEMELA_VERSION)
     parser.add_argument("--pocket_local_connections",
                         type=int,
                         default=DEFAULT_POCKET_LOCAL_CONNECTIONS)

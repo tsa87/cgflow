@@ -83,7 +83,7 @@ python scripts/b_create_env.py -b building_blocks/enamine_catalog.smi -o envs/ca
 
 #### Option B: Download Prepared Files
 ```bash
-cd experiments/data
+cd experiments/data/envs
 gdown https://drive.google.com/uc?id=192RuXBzM51Mk__-kSKcCs4kthnKHWAgm
 tar -xzvf stock.tar.gz
 ```
@@ -122,6 +122,7 @@ wandb agent <sweep-id>
 1. Get `crossdocked.tar.gz` from [here](https://drive.google.com/file/d/1BKYx_H1m-TzG_75Gk-7sjPkt5ow-Acdw/view?usp=sharing)
 2. Extract dataset:
 ```bash
+cd experiments/data/
 gdown 1BKYx_H1m-TzG_75Gk-7sjPkt5ow-Acdw
 tar -xzvf crossdocked.tar.gz
 ```
@@ -180,3 +181,13 @@ If you use this work, please cite:
   url={https://openreview.net/forum?id=N8cPv95zOU}
 }
 ```
+
+
+## Instructions for Public Release
+```bash
+cat .gitignore > exclude.txt
+echo '.git/*' >> exclude.txt
+echo '.experimental/*' >> exclude.txt
+rsync -av --exclude-from=exclude.txt . ../cgflow/
+```
+

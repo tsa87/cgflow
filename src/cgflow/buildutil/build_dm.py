@@ -20,8 +20,8 @@ PLINDER_VAL_PATH = "semlaflow/saved/data/plinder/smol/val.smol"
 DatasetConfig = namedtuple(
     "DatasetConfig",
     [
-        "coord_std", "padded_sizes", "max_length", "dataset_type", "train_lmdb_path",
-        "val_lmdb_path", "train_key_path", "val_key_path"
+        "coord_std", "padded_sizes", "max_length", "dataset_type",
+        "train_lmdb_path", "val_lmdb_path", "train_key_path", "val_key_path"
     ],
 )
 CategoricalStrategyConfig = namedtuple(
@@ -202,21 +202,20 @@ def _get_dataset_cls(data_config):
         raise ValueError(f"Unknown dataset type {data_config.dataset_type}")
 
 
-def get_datasets(transform_fn, data_config):
+def get_datasets(transform_fn, data_config, mode="train"):
     DatasetClass = _get_dataset_cls(data_config)
-    train_dataset = DatasetClass(
-        key_path=data_config.train_key_path,
-        lmdb_path=data_config.train_lmdb_path,
+    if mode == "train":
+        key_path = data_config.train_key_path
+        lmdb_path = data_config.train_lmdb_path
+    else:
+        key_path = data_config.val_key_path
+        lmdb_path = data_config.val_lmdb_path
+    return DatasetClass(
+        key_path=key_path,
+        lmdb_path=lmdb_path,
         transform=transform_fn,
         max_length=data_config.max_length,
     )
-    val_dataset = DatasetClass(
-        key_path=data_config.val_key_path,
-        lmdb_path=data_config.val_lmdb_path,
-        transform=transform_fn,
-        max_length=data_config.max_length,
-    )
-    return train_dataset, val_dataset
 
 
 def get_dataset_from_batch(batch, transform_fn, data_config):
@@ -330,7 +329,7 @@ def get_interpolants(args, vocab, cat_config, ot_config, data_config):
     return train_interpolant, eval_interpolant
 
 
-def build_dm(args, vocab, batch=None):
+def build_dm(args, vocab, batch=None, mode="train"):
     data_path = Path(args.data_path)
 
     data_config = get_dataset_config(args.dataset, data_path,
@@ -341,8 +340,9 @@ def build_dm(args, vocab, batch=None):
     transform_fn = get_transform_fn(data_config, vocab)
 
     # For training - which loads the dataset from disk
-    if batch is None:
-        train_dataset, val_dataset = get_datasets(transform_fn, data_config)
+    if batch is None and mode == "train":
+        train_dataset = get_datasets(transform_fn, data_config, mode="train")
+        val_dataset = get_datasets(transform_fn, data_config, mode="val")
 
         if args.n_validation_mols < len(val_dataset):
             val_dataset = val_dataset.sample(args.n_validation_mols)
@@ -350,7 +350,13 @@ def build_dm(args, vocab, batch=None):
             train_dataset = train_dataset.sample(args.n_training_mols)
 
     # For prediction - which loads the dataset from batch
+    elif batch is None and mode == "val":
+        val_dataset = get_datasets(transform_fn, data_config, mode="val")
+        train_dataset = val_dataset
     else:
+        raise ValueError(f"Unknown mode {mode}")
+
+    if batch is not None:
         val_dataset = get_dataset_from_batch(batch, transform_fn, data_config)
         train_dataset = val_dataset
 
@@ -368,6 +374,7 @@ def build_dm(args, vocab, batch=None):
         train_interpolant=train_interpolant,
         val_interpolant=eval_interpolant,
         test_interpolant=None,
+        bucket_limits=data_config.padded_sizes,
         bucket_cost_scale=args.bucket_cost_scale,
         pad_to_bucket=False,
         num_workers=args.num_workers,

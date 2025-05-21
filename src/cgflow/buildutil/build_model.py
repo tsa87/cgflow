@@ -4,7 +4,10 @@ import cgflow.scriptutil as util
 import cgflow.util.rdkit as smolRD
 from cgflow.models.complex_fm import ARMolecularCFM
 from cgflow.models.fm import Integrator, MolecularCFM
-from cgflow.models.pocket_v2 import LigandGenerator, PocketEncoder
+from cgflow.models.pocket_v2 import LigandGenerator as LigandGeneratorV2
+from cgflow.models.pocket_v2 import PocketEncoder as PocketEncoderV2
+from cgflow.models.pocket import LigandGenerator as LigandGeneratorV1
+from cgflow.models.pocket import PocketEncoder as PocketEncoderV1
 
 CategoricalStrategyConfig = namedtuple(
     "CategoricalStrategyConfig",
@@ -114,42 +117,77 @@ def get_train_config(args, dm):
 
 
 def get_semla_model(args, vocab, cat_config, pocket_enc=None):
-    egnn_gen = LigandGenerator(
-        d_equi=args.n_coord_sets,
-        d_inv=args.d_model,
-        d_message=args.d_message,
-        n_layers=args.n_layers,
-        n_attn_heads=args.n_attn_heads,
-        d_message_ff=args.d_message_hidden,
-        d_edge=args.d_edge,
-        n_atom_types=vocab.size,
-        n_bond_types=cat_config.n_bond_types,
-        n_extra_atom_feats=cat_config.n_extra_atom_feats,
-        self_cond=args.self_condition,
-        ligand_local_connections=args.ligand_local_connections,
-        cond_local_connections=args.pocket_ligand_local_connections,
-        pocket_enc=pocket_enc,
-    )
+    if args.semla_version == "v1":
+        assert args.ligand_local_connections is None, "v1 does not support ligand local connections"
+        assert args.pocket_local_connections is None, "v1 does not support pocket local connections"
+        egnn_gen = LigandGeneratorV1(
+            d_equi=args.n_coord_sets,
+            d_inv=args.d_model,
+            d_message=args.d_message,
+            n_layers=args.n_layers,
+            n_attn_heads=args.n_attn_heads,
+            d_message_ff=args.d_message_hidden,
+            d_edge=args.d_edge,
+            n_atom_types=vocab.size,
+            n_bond_types=cat_config.n_bond_types,
+            n_extra_atom_feats=cat_config.n_extra_atom_feats,
+            self_cond=args.self_condition,
+            pocket_enc=pocket_enc,
+        )
+    elif args.semla_version == "v2":
+        egnn_gen = LigandGeneratorV2(
+            d_equi=args.n_coord_sets,
+            d_inv=args.d_model,
+            d_message=args.d_message,
+            n_layers=args.n_layers,
+            n_attn_heads=args.n_attn_heads,
+            d_message_ff=args.d_message_hidden,
+            d_edge=args.d_edge,
+            n_atom_types=vocab.size,
+            n_bond_types=cat_config.n_bond_types,
+            n_extra_atom_feats=cat_config.n_extra_atom_feats,
+            self_cond=args.self_condition,
+            ligand_local_connections=args.ligand_local_connections,
+            cond_local_connections=args.pocket_ligand_local_connections,
+            pocket_enc=pocket_enc,
+        )
+    else:
+        raise ValueError(f"Unknown Semla version {args.semla_version}")
     return egnn_gen
 
 
 def get_pocket_encoder(args, vocab, cat_config):
     pocket_d_equi = 1 if args.fixed_equi else args.n_coord_sets
-    pocket_enc = PocketEncoder(
-        d_equi=pocket_d_equi,
-        d_inv=args.pocket_d_inv,
-        d_message=args.d_message,
-        n_layers=args.pocket_n_layers,
-        n_attn_heads=args.n_attn_heads,
-        d_message_ff=args.d_message_hidden,
-        d_edge=args.d_edge,
-        n_atom_names=vocab.size,
-        n_bond_types=cat_config.n_bond_types,
-        n_res_types=len(smolRD.IDX_RESIDUE_MAP),
-        fixed_equi=args.fixed_equi,
-        local_connections=args.pocket_local_connections,
-        virtual_nodes=args.pocket_virtual_nodes,
-    )
+    if args.semla_version == "v1":
+        pocket_enc = PocketEncoderV1(d_equi=pocket_d_equi,
+                                     d_inv=args.pocket_d_inv,
+                                     d_message=args.d_message,
+                                     n_layers=args.pocket_n_layers,
+                                     n_attn_heads=args.n_attn_heads,
+                                     d_message_ff=args.d_message_hidden,
+                                     d_edge=args.d_edge,
+                                     n_atom_names=vocab.size,
+                                     n_bond_types=cat_config.n_bond_types,
+                                     n_res_types=len(smolRD.IDX_RESIDUE_MAP),
+                                     fixed_equi=args.fixed_equi)
+    elif args.semla_version == "v2":
+        pocket_enc = PocketEncoderV2(
+            d_equi=pocket_d_equi,
+            d_inv=args.pocket_d_inv,
+            d_message=args.d_message,
+            n_layers=args.pocket_n_layers,
+            n_attn_heads=args.n_attn_heads,
+            d_message_ff=args.d_message_hidden,
+            d_edge=args.d_edge,
+            n_atom_names=vocab.size,
+            n_bond_types=cat_config.n_bond_types,
+            n_res_types=len(smolRD.IDX_RESIDUE_MAP),
+            fixed_equi=args.fixed_equi,
+            local_connections=args.pocket_local_connections,
+            virtual_nodes=args.pocket_virtual_nodes,
+        )
+    else:
+        raise ValueError(f"Unknown Semla version {args.semla_version}")
     return pocket_enc
 
 
@@ -196,6 +234,7 @@ def get_cfm_model(
         train_smiles=train_config.train_smiles,
         type_mask_index=cat_config.type_mask_index,
         bond_mask_index=cat_config.bond_mask_index,
+        args=args,
         **hparams,
     )
 

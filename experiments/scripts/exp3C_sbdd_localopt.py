@@ -8,7 +8,7 @@ if __name__ == "__main__":
     wandb.init(project="cgflow-update", group="sbdd-localopt")
 
     config = init_empty(Config())
-    config.env_dir = "./data/stock"
+    config.env_dir = "./data/envs/stock"
     config.log_dir = "./logs/rebuttal-multipocket/sbdd_localopt"
     config.print_every = 10
     config.checkpoint_every = 500

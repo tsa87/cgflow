@@ -11,9 +11,7 @@ from synthflow.utils import autodock
 
 
 def setup_vina_module(self: BaseDockingTask) -> Vina:
-    return autodock.create_vina_from_protein(self.protein_path,
-                                             center=self.center,
-                                             size=(30, 30, 30))
+    return autodock.create_vina_from_protein(self.protein_path, center=self.center, size=(30, 30, 30))
 
 
 def _run_localopt(self, mols: list[Chem.Mol]) -> list[float]:
@@ -49,15 +47,13 @@ def _run_localopt(self, mols: list[Chem.Mol]) -> list[float]:
 
 def _calc_vina_score_batch(self, mols: list[Chem.Mol]) -> list[float]:
     if self.redocking:
-        raise NotImplementedError(
-            "Redocking is not implemented for AutoDockVinaTask")
+        raise NotImplementedError("Redocking is not implemented for AutoDockVinaTask")
         # return _run_redocking(self, objs)
     else:
         return _run_localopt(self, mols)
 
 
 class AutoDockVina_Task(BaseDockingTask):
-
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.vina_module = setup_vina_module(self)
@@ -66,7 +62,6 @@ class AutoDockVina_Task(BaseDockingTask):
 
 
 class AutoDockVina_MOOTask(BaseDockingMOOTask):
-
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.vina_module = setup_vina_module(self)
@@ -75,7 +70,6 @@ class AutoDockVina_MOOTask(BaseDockingMOOTask):
 
 
 class AutoDockVina_MOGFNTask(BaseDockingMOGFNTask):
-
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.vina_module = setup_vina_module(self)
@@ -154,12 +148,12 @@ if __name__ == "__main__":
     config = init_empty(Config())
     config.print_every = 1
     config.log_dir = "./logs/debug-autodock/"
-    config.env_dir = "./data/stock"
+    config.env_dir = "./data/envs/stock"
     config.overwrite_existing_exp = True
 
     config.cgflow.ckpt_path = "./weights/crossdocked_till_end.ckpt"
-    config.task.docking.protein_path = "./experiments/data/examples/6oim_protein.pdb"
-    config.task.docking.ref_ligand_path = "./experiments/data/examples/6oim_ligand.pdb"
+    config.task.docking.protein_path = "./data/experiments/examples/6oim_protein.pdb"
+    config.task.docking.ref_ligand_path = "./data/experiments/examples/6oim_ligand.pdb"
 
     trial = AutoDockVina_MOOTrainer(config)
     trial.run()

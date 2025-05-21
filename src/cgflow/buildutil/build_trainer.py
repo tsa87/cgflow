@@ -8,7 +8,7 @@ import cgflow.scriptutil as util
 
 # bfloat16 training produced significantly worse models than full so use default 16-bit instead
 def get_precision(args):
-    return "bf16-mixed"
+    return "16-mixed"
 
 
 def build_trainer(args):
@@ -53,8 +53,8 @@ def build_trainer(args):
     trainer = L.Trainer(
         accelerator="gpu",
         devices=args.num_gpus,
-        strategy='auto' if args.num_gpus == 1 else
-        "deepspeed_stage_2",  #DDPStrategy(find_unused_parameters=True),
+        strategy='auto' if args.num_gpus == 1 else DDPStrategy(
+            find_unused_parameters=True),
         min_epochs=epochs,
         max_epochs=epochs,
         logger=logger,

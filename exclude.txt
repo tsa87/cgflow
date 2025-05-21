@@ -66,4 +66,7 @@ __pycache__/
 
 # experimental code
 src/app
-weights
+weights.git
+experimental/
+.git/*
+experimental/*

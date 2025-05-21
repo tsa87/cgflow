@@ -11,9 +11,7 @@ from rxnflow.config import Config, init_empty
 
 
 class SEHTask(BaseTask):
-
-    def __init__(self, cfg: Config, wrap_model: Callable[[nn.Module],
-                                                         nn.Module]):
+    def __init__(self, cfg: Config, wrap_model: Callable[[nn.Module], nn.Module]):
         super().__init__(cfg)
         self._wrap_model = wrap_model
         self.models = self._load_task_models()
@@ -32,17 +30,14 @@ class SEHTask(BaseTask):
         return preds
 
     def compute_reward_from_graph(self, graphs: list[gd.Data]) -> Tensor:
-        device = self.models["seh"].device if hasattr(
-            self.models["seh"], "device") else get_worker_device()
-        batch = gd.Batch.from_data_list([i for i in graphs
-                                         if i is not None]).to(device)
-        preds = self.models["seh"](batch).reshape((-1, )).data.cpu() / 8
+        device = self.models["seh"].device if hasattr(self.models["seh"], "device") else get_worker_device()
+        batch = gd.Batch.from_data_list([i for i in graphs if i is not None]).to(device)
+        preds = self.models["seh"](batch).reshape((-1,)).data.cpu() / 8
         preds[preds.isnan()] = 0
-        return preds.clip(1e-4, 100).reshape((-1, ))
+        return preds.clip(1e-4, 100).reshape((-1,))
 
 
 class SEHTrainer(RxnFlowTrainer):
-
     def set_default_hps(self, base: Config):
         super().set_default_hps(base)
         base.algo.sampling_tau = 0.95
@@ -57,7 +52,7 @@ if __name__ == "__main__":
     """Example of how this trainer can be run"""
     config = init_empty(Config())
     config.log_dir = "./logs/debug-seh/"
-    config.env_dir = "./data/stock"
+    config.env_dir = "./data/envs/stock"
     config.overwrite_existing_exp = True
 
     config.print_every = 10

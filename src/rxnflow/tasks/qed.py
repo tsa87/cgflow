@@ -7,13 +7,11 @@ from rxnflow.utils.chem_metrics import mol2qed
 
 
 class QEDTask(BaseTask):
-
     def compute_rewards(self, mols: list[RDMol]) -> Tensor:
         return mol2qed(mols).reshape(-1, 1)
 
 
 class QEDTrainer(RxnFlowTrainer):  # For online training
-
     def setup_task(self):
         self.task: QEDTask = QEDTask(cfg=self.cfg)
 
@@ -24,7 +22,7 @@ if __name__ == "__main__":
     config.print_every = 1
     config.num_training_steps = 100
     config.log_dir = "./logs/debug-qed/"
-    config.env_dir = "./data/stock"
+    config.env_dir = "./data/envs/stock"
     config.overwrite_existing_exp = True
     config.algo.action_subsampling.sampling_ratio = 0.01
 
