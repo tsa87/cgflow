@@ -18,6 +18,8 @@ experiments/data/LIT-PCBA/
 # semlaflow
 .gvp_cache/
 docking_pipeline/
+experiments/data/test/LIT-PCBA/*/pocket*.pdb
+experiments/data/test/LIT-PCBA/*/*.pdbqt
 **/weights/*.ckpt
 tony/v0/notebooks/
 tony/v1/temp/
@@ -26,6 +28,10 @@ evaluation_results/
 
 # pharmaconet
 PharmacoNet/
+# running
+weights/
+weights.tar
+experiments/data/test/
 
 # package
 build/

@@ -8,8 +8,8 @@ command:
   - ${program}
   - finetune # group
   - ./logs/exp2-finetune/ # storage
-  - ../data/envs/catalog/ # env dir
-  - ../data/experiments/LIT-PCBA/ # pocket
+  - ./data/envs/stock/ # env dir
+  - ./data/test/LIT-PCBA/ # pocket
   - ../weights/finetune_aldh1_epoch100.ckpt # ckpt
 
 method: grid

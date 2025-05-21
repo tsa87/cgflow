@@ -1,6 +1,6 @@
-project: "cgflow-update"
-program: ./scripts/exp1_redock_unidock.py
-name: "rebuttal-localopt"
+project: "cgflow-cameraready"
+program: ./scripts/exp2_localopt_autodock.py
+name: "localopt"
 
 command:
   - ${env}
@@ -8,15 +8,30 @@ command:
   - ${program}
   - localopt # group
   - ./logs/exp2-localopt/ # storage
-  - ../data/envs/catalog/ # env dir
-  - ../data/experiments/LIT-PCBA/ # pocket dir
-  - ../weights/crossdocked2020_till_end.ckpt # ckpt
+  - ./data/envs/stock/ # env dir
+  - ./data/test/LIT-PCBA/ # pocket dir
+  - ./weights/plidner_till_end.ckpt # ckpt
 
 method: grid
 parameters:
   protein:
-    value: ALDH1
+    values:
+      - ADRB2
+      - ALDH1
+      - ESR_ago
+      - ESR_antago
+      - FEN1
+      - GBA
+      - IDH1
+      - KAT2A
+      - MAPK1
+      - MTORC1
+      - OPRK1
+      - PKM2
+      - PPARG
+      - TP53
+      - VDR
   seed:
     values: [0, 1, 2]
   num_inference_steps:
-    value: 80
+    value: 50

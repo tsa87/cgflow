@@ -118,8 +118,7 @@ def complex_transform(complex, vocab, coord_std, radius=np.inf, fix_pos=False):
 
     transformed_ligand = complex.ligand._copy_with(
         atomics=smolF.atomics_to_index(complex.ligand.atomics, vocab),
-        charges=smolF.charge_to_index(complex.ligand.charges),
-    )
+        charges=smolF.charge_to_index(complex.ligand.charges))
 
     # Convert the holo pocket into a geometric molecule and transform atomic properties
     holo_mol = complex.holo.to_geometric_mol()

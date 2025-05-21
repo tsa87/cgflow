@@ -8,8 +8,8 @@ command:
   - ${program}
   - rebuttal-fm-schedule # group
   - ./logs/ana1-fm-time-schedule/ # storage
-  - ../data/envs/stock # env dir
-  - ../data/experiments/LIT-PCBA/ # pocket dir
+  - ./data/envs/stock # env dir
+  - ./data/test/LIT-PCBA/ # pocket dir
 
 method: grid
 parameters:

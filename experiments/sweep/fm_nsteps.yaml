@@ -8,8 +8,8 @@ command:
   - ${program}
   - rebuttal-fm-nsteps # group
   - ./logs/ana2-fm-nsteps/ # storage
-  - ../data/envs/stock/ # env dir
-  - ../data/experiments/LIT-PCBA/ # pocket dir
+  - ./data/envs/stock/ # env dir
+  - ./data/experiments/LIT-PCBA/ # pocket dir
   - ../weights/crossdocked2020_till_end.ckpt # ckpt
 
 method: grid

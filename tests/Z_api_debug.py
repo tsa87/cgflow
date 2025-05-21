@@ -6,7 +6,7 @@ import torch
 from rdkit import Chem
 from rdkit.Chem.rdChemReactions import ReactionFromSmarts
 
-from synthflow.pocket_specific.api import SemlaFlowAPI
+from synthflow.api.api import CGFlowAPI
 
 
 class Prediction:
@@ -19,15 +19,8 @@ class Prediction:
         num_inference_steps: int = 100,
     ):
         # NOTE: flow-matching module
-        self.cgflow_api = SemlaFlowAPI.from_protein(
-            cgflow_ckpt_path,
-            protein_path,
-            ref_ligand_path,
-            device=device,
-            num_inference_steps=num_inference_steps,
-            fp16=True,
-        )
-        print(self.cgflow_api.cfg)
+        self.cgflow_api = CGFlowAPI(cgflow_ckpt_path, num_inference_steps, device, fp16=True)
+        self.cgflow_api.set_protein(protein_path, ref_ligand_path)
         self.mol_ongoing: Chem.Mol
         self.poses_ongoing: np.ndarray
 
@@ -100,13 +93,11 @@ if __name__ == "__main__":
     """Example of how this trainer can be run"""
     target = "ALDH1"
     module = Prediction(
-        # "./weights/crossdocked2020_till_end.ckpt",
-        # "./weights/crossdocked2020_no_overlap.ckpt",
-        "./weights/crossdocked2020.ckpt",
-        # "./weights/plinder.ckpt",
-        f"./data/experiments/LIT-PCBA/{target}/protein.pdb",
-        f"./data/experiments/LIT-PCBA/{target}/ligand.mol2",
+        "./weights/plinder_till_end.ckpt",
+        f"./experiments/data/test/LIT-PCBA/{target}/protein.pdb",
+        f"./experiments/data/test/LIT-PCBA/{target}/ligand.mol2",
         "cuda",
+        num_inference_steps=100,
     )
 
     template = "[*:1]-[1*].[*:2]-[2*]>>[*:1]-[*:2]"
@@ -115,7 +106,7 @@ if __name__ == "__main__":
     path = [
         "[1*]c1cc(C(=O)O)c2c(c1)C(=O)CC2",
         "[2*]NC(=O)C[1*]",
-        "[2*]c1cn(CN)nn1",
+        "[2*]c1cn(C)nn1",
     ]
 
     history: list[tuple[Chem.Mol, np.ndarray, np.ndarray]] = []

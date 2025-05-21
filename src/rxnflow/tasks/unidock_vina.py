@@ -18,11 +18,13 @@ aux_tasks = {"qed": mol2qed, "sa": mol2sascore}
 
 
 class VinaTask(BaseTask):
+
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.protein_path: Path = Path(cfg.task.docking.protein_path)
         x, y, z = get_mol_center(cfg.task.docking.ref_ligand_path)
-        self.center: tuple[float, float, float] = round(x, 3), round(y, 3), round(z, 3)
+        self.center: tuple[float, float,
+                           float] = round(x, 3), round(y, 3), round(z, 3)
         self.filter: str | None = cfg.task.constraint.rule
         self.ff_optimization: None | str = None  # None, UFF, MMFF
 
@@ -116,6 +118,7 @@ class VinaMOOTask(VinaTask):
         return flat_rewards
 
     def update_storage(self, mols: list[RDMol], scores: list[float]):
+
         def _filter(mol: RDMol) -> bool:
             """Check the object passes a property filter"""
             return QED.qed(mol) > 0.5
@@ -180,7 +183,7 @@ if __name__ == "__main__":
     config = init_empty(Config())
     config.print_every = 1
     config.log_dir = "./logs/debug-unidock/"
-    config.env_dir = "./data/envs/catalog"
+    config.env_dir = "./data/envs/stock"
     config.task.constraint.rule = "veber"
     config.overwrite_existing_exp = True
 

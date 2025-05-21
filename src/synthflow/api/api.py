@@ -21,6 +21,7 @@ from .utils import build_vocab
 
 
 class CGFlowAPI:
+    cfg: CGFlowConfig
     vocab: Vocabulary
     dm: CGFlow_DM
     model: CGFlowInference
@@ -40,7 +41,9 @@ class CGFlowAPI:
 
         # load checkpoint and setup modules
         if isinstance(checkpoint, str | Path):
-            ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
+            ckpt = torch.load(checkpoint,
+                              map_location="cpu",
+                              weights_only=False)
         else:
             ckpt = checkpoint
         self.setup_config(ckpt, num_inference_steps)
@@ -54,24 +57,24 @@ class CGFlowAPI:
         config = CGFlowConfig(
             dataset=hparam["dataset"],
             self_condition=hparam["self_condition"],
-            d_model=hparam["d_inv"],
+            d_model=hparam["d_model"],
             n_layers=hparam["n_layers"],
             d_message=hparam["d_message"],
             d_edge=hparam["d_edge"],
-            n_coord_sets=hparam["d_equi"],
+            n_coord_sets=hparam["n_coord_sets"],
             n_attn_heads=hparam["n_attn_heads"],
-            d_message_hidden=hparam["d_message_ff"],
-            pocket_d_inv=hparam["pocket-d_inv"],
-            pocket_n_layers=hparam["pocket-n_layers"],
-            fixed_equi=hparam["pocket-fixed_equi"],
+            d_message_hidden=hparam["d_message_hidden"],
+            pocket_d_inv=hparam["pocket_d_inv"],
+            pocket_n_layers=hparam["pocket_n_layers"],
+            fixed_equi=hparam["fixed_equi"],
             t_per_ar_action=hparam["t_per_ar_action"],
             max_interp_time=hparam["max_interp_time"],
             max_action_t=hparam["max_action_t"],
             max_num_cuts=hparam["max_num_cuts"],
             num_inference_steps=num_inference_steps,
         )
-        self.cfg: CGFlowConfig = config
-        print(self.cfg)
+        self.cfg = config
+        # print(self.cfg)
 
     def setup_vocab(self):
         self.vocab = build_vocab()
@@ -80,7 +83,11 @@ class CGFlowAPI:
         self.dm = CGFlow_DM(self.cfg, self.vocab, self.device)
 
     def setup_model(self, model_state_dict: dict[str, Any]):
-        self.model = CGFlowInference(self.cfg, self.dm.interpolant, model_state_dict, self.device, compile=False)
+        self.model = CGFlowInference(self.cfg,
+                                     self.dm.interpolant,
+                                     model_state_dict,
+                                     self.device,
+                                     compile=False)
 
     # set pocket info
     def set_pocket(self, pocket_path: str | Path):
@@ -90,11 +97,13 @@ class CGFlowAPI:
         self._tmp_pocket = pocket
         self._tmp_pocket_data = self.__encode_pocket(pocket)
         self._tmp_pocket_batch = {
-            k: v.repeat((MAX_NUM_BATCH,) + (1,) * (v.dim() - 1)) for k, v in self._tmp_pocket_data.items()
+            k: v.repeat((MAX_NUM_BATCH, ) + (1, ) * (v.dim() - 1))
+            for k, v in self._tmp_pocket_data.items()
         }
         self._tmp_center = center
 
-    def set_protein(self, protein_path: str | Path, ref_ligand_path: str | Path):
+    def set_protein(self, protein_path: str | Path,
+                    ref_ligand_path: str | Path):
         pocket_path = self.extract_pocket(protein_path, ref_ligand_path)
         pocket: ProteinPocket = self.load_pocket(pocket_path)
         center = pocket.coords.numpy().mean(0)
@@ -102,7 +111,8 @@ class CGFlowAPI:
         self._tmp_pocket = pocket
         self._tmp_pocket_data = self.__encode_pocket(pocket)
         self._tmp_pocket_batch = {
-            k: v.repeat((MAX_NUM_BATCH,) + (1,) * (v.dim() - 1)) for k, v in self._tmp_pocket_data.items()
+            k: v.repeat((MAX_NUM_BATCH, ) + (1, ) * (v.dim() - 1))
+            for k, v in self._tmp_pocket_data.items()
         }
         self._tmp_center = center
 
@@ -116,7 +126,8 @@ class CGFlowAPI:
     def __encode_pocket(self, pocket: ProteinPocket) -> dict[str, Tensor]:
         """Pre-calculate pocket encoding"""
         pocket = self.dm.transform_pocket(pocket)
-        pocket_data = self.dm._batch_to_dict(GeometricMolBatch.from_list([pocket]))
+        pocket_data = self.dm._batch_to_dict(
+            GeometricMolBatch.from_list([pocket]))
         pocket_data = {k: v.to(self.device) for k, v in pocket_data.items()}
         pocket_data = self.model.encode_pocket(pocket_data)
         return pocket_data
@@ -130,7 +141,8 @@ class CGFlowAPI:
         is_last: bool = False,
         inplace: bool = False,
         return_traj: bool = False,
-    ) -> tuple[list[Chem.Mol], list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
+    ) -> tuple[list[Chem.Mol], list[np.ndarray], list[np.ndarray],
+               list[np.ndarray]]:
         """Predict Binding Pose in an autoregressive manner
 
         Parameters
@@ -161,12 +173,14 @@ class CGFlowAPI:
             self.set_gen_order(mol, curr_step)
 
         # mask dummy atoms
-        masked_mols, idcs_list = zip(*[remove_dummy(mol) for mol in mols], strict=True)
+        masked_mols, idcs_list = zip(*[remove_dummy(mol) for mol in mols],
+                                     strict=True)
 
         # run cgflow
         dev = "cpu" if self.device == torch.device("cpu") else "cuda"
         with torch.autocast(dev, enabled=self.fp16):
-            __traj_xt_list, __traj_x1_list, __hidden_emb_list = self._run(masked_mols, curr_step, is_last, return_traj)
+            __traj_xt_list, __traj_x1_list, __hidden_emb_list = self._run(
+                masked_mols, curr_step, is_last, return_traj)
 
         # Add dummy atoms & pose stateate
         upd_mols: list[Chem.Mol] = []
@@ -233,8 +247,10 @@ class CGFlowAPI:
 
         # sort with data size to minimize padding
         lengths = [len(orders) for orders in gen_order_list]
-        sorted_indices = sorted(range(len(ligand_datas)), key=lambda i: lengths[i])
-        inverse_indices = sorted(range(len(sorted_indices)), key=lambda i: sorted_indices[i])
+        sorted_indices = sorted(range(len(ligand_datas)),
+                                key=lambda i: lengths[i])
+        inverse_indices = sorted(range(len(sorted_indices)),
+                                 key=lambda i: sorted_indices[i])
 
         # create loader (sort data for efficient batching)
         sorted_ligand_list = [ligand_list[i] for i in sorted_indices]
@@ -247,7 +263,10 @@ class CGFlowAPI:
         for (curr, prior_coords), gen_steps in loader:
             N = gen_steps.shape[0]
             masks = curr["mask"].bool().numpy()  # atom mask
-            pocket: dict[str, Tensor] = {k: v[:N] for k, v in self._tmp_pocket_batch.items()}  # match the batch size
+            pocket: dict[str, Tensor] = {
+                k: v[:N]
+                for k, v in self._tmp_pocket_batch.items()
+            }  # match the batch size
 
             # set coordinates of newly added atoms to prior
             newly_added = gen_steps == curr_step
@@ -258,20 +277,27 @@ class CGFlowAPI:
             gen_steps = gen_steps.to(self.device)
 
             # flow matching inference for binding pose prediction
-            fm_trajs, (h_equi, h_inv) = self.model.run(curr, pocket, gen_steps, curr_step, is_last, return_traj)
+            fm_trajs, (h_equi, h_inv) = self.model.run(curr, pocket, gen_steps,
+                                                       curr_step, is_last,
+                                                       return_traj)
             rescaled_trajs = list(map(process, fm_trajs))
 
             # NOTE: we cannot use current h_inv since is is propagated from untrained layer.
-            hidden_emb = h_equi.flatten(2)  # [batch, num_atoms, 3, n_hidden] -> [batch, num_atoms, 3*n_hidden]
+            hidden_emb = h_equi.flatten(
+                2
+            )  # [batch, num_atoms, 3, n_hidden] -> [batch, num_atoms, 3*n_hidden]
 
             # add conformer for each ligand
             for i in range(N):
                 mask = masks[i]
                 xt_traj = [xt[i][mask] for xt, _ in rescaled_trajs]
                 x1_traj = [x1[i][mask] for _, x1 in rescaled_trajs]
-                sorted_xt_traj_list.append(np.stack(xt_traj, axis=0, dtype=np.float_))
-                sorted_x1_traj_list.append(np.stack(x1_traj, axis=0, dtype=np.float_))
-                sorted_hidden_emb_list.append(hidden_emb[i].cpu().numpy()[mask])
+                sorted_xt_traj_list.append(
+                    np.stack(xt_traj, axis=0, dtype=np.float_))
+                sorted_x1_traj_list.append(
+                    np.stack(x1_traj, axis=0, dtype=np.float_))
+                sorted_hidden_emb_list.append(
+                    hidden_emb[i].cpu().numpy()[mask])
 
         # reordering
         xt_traj_list = [sorted_xt_traj_list[i] for i in inverse_indices]
@@ -299,7 +325,9 @@ class CGFlowAPI:
 
     def get_ligand_data(self, mol: Chem.Mol) -> tuple[GeometricMol, list[int]]:
         g = GeometricMol.from_rdkit(mol)
-        gen_orders: list[int] = [atom.GetIntProp("gen_order") for atom in mol.GetAtoms()]
+        gen_orders: list[int] = [
+            atom.GetIntProp("gen_order") for atom in mol.GetAtoms()
+        ]
         return g, gen_orders
 
     def extract_pocket(
@@ -308,21 +336,20 @@ class CGFlowAPI:
         ref_ligand_path: str | Path,
         force_pocket_extract: bool = False,
     ) -> Path:
-        match self.cfg.dataset:
-            case "plinder":
-                extract_func = extract_pocket.extract_pocket_plinder
-            case "crossdocked":
-                extract_func = extract_pocket.extract_pocket_crossdocked
-            case _:
-                raise ValueError(self.cfg.dataset)
-        return extract_func(protein_path, ref_ligand_path, force_pocket_extract=force_pocket_extract)
+        return extract_pocket.extract_pocket_from_center(
+            protein_path,
+            ref_ligand_path=ref_ligand_path,
+            force_pocket_extract=force_pocket_extract,
+            cutoff=15)
 
     def load_pocket(self, pocket_path: str | Path) -> ProteinPocket:
         return ProteinPocket.from_pdb(pocket_path, infer_res_bonds=True)
 
 
 def remove_dummy(mol: Chem.Mol) -> tuple[Chem.RWMol, list[int]]:
-    non_star_idcs = [i for i, atom in enumerate(mol.GetAtoms()) if atom.GetSymbol() != "*"]
+    non_star_idcs = [
+        i for i, atom in enumerate(mol.GetAtoms()) if atom.GetSymbol() != "*"
+    ]
     non_star_mol = Chem.RWMol(mol)
     for atom in mol.GetAtoms():
         if atom.GetSymbol() == "*":
@@ -330,7 +357,8 @@ def remove_dummy(mol: Chem.Mol) -> tuple[Chem.RWMol, list[int]]:
     return non_star_mol, non_star_idcs
 
 
-def expand_trajs(coords: np.ndarray, atom_indices: list[int], num_atoms: int) -> np.ndarray:
+def expand_trajs(coords: np.ndarray, atom_indices: list[int],
+                 num_atoms: int) -> np.ndarray:
     """Expands [T, V', 3] coordinates to [T, V, 3], filling unspecified indices with zero."""
     if coords.shape[1] == num_atoms:
         return coords
@@ -341,7 +369,8 @@ def expand_trajs(coords: np.ndarray, atom_indices: list[int], num_atoms: int) ->
         return expanded_coords.copy()
 
 
-def expand_hidden_emb(emb: np.ndarray, atom_indices: list[int], num_atoms: int) -> np.ndarray:
+def expand_hidden_emb(emb: np.ndarray, atom_indices: list[int],
+                      num_atoms: int) -> np.ndarray:
     """Expands [T, V', 3] coordinates to [T, V, 3], filling unspecified indices with zero."""
     if emb.shape[1] == num_atoms:
         return emb
