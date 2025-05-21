@@ -119,12 +119,11 @@ wandb agent <sweep-id>
 ### 3. Pocket-conditional Generation
 
 #### A. Download CrossDocked Dataset
-1. Get `crossdocked_pocket10.tar.gz` and `split_by_name.pt` from [here](https://drive.google.com/drive/folders/1CzwxmTpjbrt83z_wBzcQncq84OVDPurM)
+1. Get `crossdocked.tar.gz` from [here](https://drive.google.com/file/d/1BKYx_H1m-TzG_75Gk-7sjPkt5ow-Acdw/view?usp=sharing)
 2. Extract dataset:
 ```bash
-# we do not need the sdf files
-tar -xzvf crossdocked_pocket10.tar.gz --exclude='*.sdf'
-mv crossdocked_pocket10 experiments/data/CrossDocked2020/
+gdown 1BKYx_H1m-TzG_75Gk-7sjPkt5ow-Acdw
+tar -xzvf crossdocked.tar.gz
 ```
 
 #### B. Use Pretrained Weights
