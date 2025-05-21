@@ -70,3 +70,6 @@ weights.git
 experimental/
 .git/*
 experimental/*
+.experiments/data/scripts/a_dr*
+.experiments/data/scripts/a_dr*
+.experiments/data/scripts/a_druglike_filter.py

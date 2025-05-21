@@ -14,7 +14,7 @@ def main(block_path: str, save_block_path: str, num_cpus: int):
     print("Read SDF Files")
     mols = list(Chem.SDMolSupplier(str(block_file)))
     mols = [mol for mol in mols if mol is not None]
-    ids = [mol.GetProp("ID") for mol in mols]
+    ids = [mol.GetProp("Catalog_ID") for mol in mols]
     print("Including Mols:", len(mols))
     print("Run Building Blocks...")
     clean_smiles_list = []

@@ -8,18 +8,40 @@ from synthflow.tasks.gnina import Gnina_MOGFNTrainer
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Gnina-QED optimization using 3D information")
-    parser.add_argument("--prefix", type=str, default="topo2", help="Run prefix")
-    parser.add_argument("--storage", type=str, default="logs/ex3_topo2/", help="Storage directory")
-    parser.add_argument("--env_dir", type=str, default="data/envs/catalog", help="Environment directory")
-    parser.add_argument("--pocket_dir", type=str, default="../topo2/", help="Pocket directory")
-    parser.add_argument("--ckpt_path", type=str, default="weights/topo2_epoch209.ckpt", help="Checkpoint path")
-    parser.add_argument(
-        "--protein", type=str, default="4FM9_T633_prepared_ref_ligand_plinder.pdb", help="Target protein"
-    )
+    parser = argparse.ArgumentParser(
+        description="Gnina-QED optimization using 3D information")
+    parser.add_argument("--prefix",
+                        type=str,
+                        default="topo2",
+                        help="Run prefix")
+    parser.add_argument("--storage",
+                        type=str,
+                        default="logs/ex3_topo2/",
+                        help="Storage directory")
+    parser.add_argument("--env_dir",
+                        type=str,
+                        default="data/envs/stock",
+                        help="Environment directory")
+    parser.add_argument("--pocket_dir",
+                        type=str,
+                        default="../topo2/",
+                        help="Pocket directory")
+    parser.add_argument("--ckpt_path",
+                        type=str,
+                        default="weights/topo2_epoch209.ckpt",
+                        help="Checkpoint path")
+    parser.add_argument("--protein",
+                        type=str,
+                        default="4FM9_T633_prepared_ref_ligand_plinder.pdb",
+                        help="Target protein")
     parser.add_argument("--seed", type=int, default=1, help="Random seed")
-    parser.add_argument("--redocking", action="store_true", help="Enable redocking")
-    parser.add_argument("--num_inference_steps", type=int, default=80, help="Number of inference steps")
+    parser.add_argument("--redocking",
+                        action="store_true",
+                        help="Enable redocking")
+    parser.add_argument("--num_inference_steps",
+                        type=int,
+                        default=80,
+                        help="Number of inference steps")
 
     args = parser.parse_args()
 
@@ -35,9 +57,12 @@ def main():
 
     # Initialize wandb if enabled
     wandb.init(group=prefix)
-    wandb.config.update(
-        {"protein": target, "seed": seed, "redocking": redocking, "num_inference_steps": num_inference_steps}
-    )
+    wandb.config.update({
+        "protein": target,
+        "seed": seed,
+        "redocking": redocking,
+        "num_inference_steps": num_inference_steps
+    })
 
     protein_path = os.path.join(pocket_dir, target)
     ref_ligand_path = os.path.join(pocket_dir, "ref_ligand.sdf")

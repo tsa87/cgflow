@@ -8,28 +8,12 @@ from Bio.PDB.PDBIO import Select
 from numpy.typing import ArrayLike
 from rdkit import Chem
 
+# fmt: off
 AMINO_ACID = [
-    "ALA",
-    "CYS",
-    "ASP",
-    "GLU",
-    "PHE",
-    "GLY",
-    "HIS",
-    "ILE",
-    "LYS",
-    "LEU",
-    "MET",
-    "ASN",
-    "PRO",
-    "GLN",
-    "ARG",
-    "SER",
-    "THR",
-    "VAL",
-    "TRP",
-    "TYR",
+    "ALA", "CYS", "ASP", "GLU", "PHE", "GLY", "HIS", "ILE", "LYS", "LEU",
+    "MET", "ASN", "PRO", "GLN", "ARG", "SER", "THR", "VAL", "TRP", "TYR",
 ]
+# fmt: on
 
 
 def get_mol_coords(mol_path: str | Path) -> np.ndarray:
@@ -90,13 +74,47 @@ class LigandSelect(Select):
                 return 0
 
             # intensive cutoff
-            #
             residue_positions = np.array(
                 [list(atom.get_vector()) for atom in residue.get_atoms() if "H" not in atom.get_id()]
             )
             pairwise_dis = np.linalg.norm(residue_positions.reshape(1, -1, 3) - self.coords.reshape(-1, 1, 3), axis=-1)
             min_dis = np.min(pairwise_dis)
         return int(min_dis <= self.cutoff)
+
+
+def extract_pocket_from_center(
+    protein_path: str | Path,
+    out_pocket_path: str | Path | None = None,
+    center: tuple[float, float, float] | None = None,
+    ref_ligand_path: str | Path | None = None,
+    cutoff: float = 15.0,
+    force_pocket_extract: bool = False,
+) -> Path:
+    protein_path = Path(protein_path)
+    if out_pocket_path is None:
+        if center is not None:
+            name = "pocket_" + protein_path.stem + "_" + f"{center}" + f"_{cutoff}A.pdb"
+            out_pocket_path = protein_path.parent / name
+        else:
+            assert ref_ligand_path is not None
+            ref_ligand_path = Path(ref_ligand_path)
+            name = "pocket_" + protein_path.stem + "_" + ref_ligand_path.stem + f"_{cutoff}A.pdb"
+            out_pocket_path = protein_path.parent / name
+
+    out_pocket_path = Path(out_pocket_path)
+    if out_pocket_path.exists() and (not force_pocket_extract):
+        return out_pocket_path
+    if center is None:
+        assert ref_ligand_path is not None
+        center = get_mol_center(ref_ligand_path)
+
+    parser = PDBParser()
+    structure = parser.get_structure("protein", str(protein_path))
+    io = PDBIO()
+    io.set_structure(structure)
+    io.save(str(out_pocket_path), CenterSelect(center, cutoff))
+
+    return out_pocket_path
 
 
 def extract_pocket_from_ref_ligand(
@@ -115,29 +133,3 @@ def extract_pocket_from_ref_ligand(
         io.set_structure(structure)
         ref_lig_coords = get_mol_coords(ref_ligand_path)
         io.save(str(out_pocket_path), LigandSelect(ref_lig_coords, cutoff, use_calpha=use_calpha))
-
-
-def extract_pocket_crossdocked(
-    protein_path: str | Path,
-    ref_ligand_path: str | Path,
-    out_pocket_path: str | Path | None = None,
-    force_pocket_extract: bool = False,
-) -> Path:
-    if out_pocket_path is None:
-        protein_path, ref_ligand_path = Path(protein_path), Path(ref_ligand_path)
-        out_pocket_path = protein_path.parent / (protein_path.stem + "_" + ref_ligand_path.stem + "_crossdocked_v1.pdb")
-    extract_pocket_from_ref_ligand(protein_path, ref_ligand_path, out_pocket_path, 10.0, True, force_pocket_extract)
-    return Path(out_pocket_path)
-
-
-def extract_pocket_plinder(
-    protein_path: str | Path,
-    ref_ligand_path: str | Path,
-    out_pocket_path: str | Path | None = None,
-    force_pocket_extract: bool = False,
-) -> Path:
-    if out_pocket_path is None:
-        protein_path, ref_ligand_path = Path(protein_path), Path(ref_ligand_path)
-        out_pocket_path = protein_path.parent / (protein_path.stem + "_" + ref_ligand_path.stem + "_plinder.pdb")
-    extract_pocket_from_ref_ligand(protein_path, ref_ligand_path, out_pocket_path, 6.0, False, force_pocket_extract)
-    return Path(out_pocket_path)

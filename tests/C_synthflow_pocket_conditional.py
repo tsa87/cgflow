@@ -10,13 +10,13 @@ if __name__ == "__main__":
     config.num_training_steps = 100
     config.print_every = 1
     config.log_dir = "./logs/debug-sbdd/"
-    config.env_dir = "./data/envs/stock"
+    config.env_dir = "./experiments/data/envs/stock-2504-druglike"
     config.overwrite_existing_exp = True
 
-    config.cgflow.ckpt_path = "./weights/crossdocked2020_till_end.ckpt"
+    config.cgflow.ckpt_path = "./weights/plinder_till_end.ckpt"
     config.cgflow.use_predicted_pose = True
-    config.cgflow.num_inference_steps = 100
-    config.algo.action_subsampling.sampling_ratio = 0.05
+    config.cgflow.num_inference_steps = 50
+    config.algo.action_subsampling.sampling_ratio = 0.1
 
     config.replay.warmup = 0
 
