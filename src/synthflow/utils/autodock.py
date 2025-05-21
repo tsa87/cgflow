@@ -44,9 +44,10 @@ def create_vina_from_protein(
 ) -> Vina:
 
     protein_path = Path(protein_path)
+    
     if protein_path.suffix == ".pdbqt":
         protein_pdbqt_path = protein_path
-    elif protein_path.suffix == "pdb":
+    elif protein_path.suffix == ".pdb":
         protein_pdb_path = protein_path
         protein_pdbqt_path = protein_pdb_path.parent / f"{protein_pdb_path.stem}_autodock.pdbqt"
         if not protein_pdbqt_path.exists():
@@ -69,6 +70,7 @@ def create_vina_from_protein(
 
 
 def suppress_stdout(func):
+
     def wrapper(*a, **ka):
         with open(os.devnull, "w") as devnull:
             with contextlib.redirect_stdout(devnull):
@@ -107,7 +109,8 @@ def ligand_rdmol_to_pdbqt_string(
     else:
         """Simple pdbqt conversion with obabel"""
         # TODO: check whether following code do work or not.
-        pbmol: pybel.Molecule = pybel.readstring("sdf", Chem.MolToMolBlock(rdmol))
+        pbmol: pybel.Molecule = pybel.readstring("sdf",
+                                                 Chem.MolToMolBlock(rdmol))
         return pbmol.write("pdbqt")
 
 
@@ -128,7 +131,8 @@ def protein_pdb_to_pdbqt(
     pdbqt_path: str | Path,
     run_pdb2pqr: bool = True,
 ):
-    prepare_receptor = os.path.join(AutoDockTools.__path__[0], "Utilities24/prepare_receptor4.py")
+    prepare_receptor = os.path.join(AutoDockTools.__path__[0],
+                                    "Utilities24/prepare_receptor4.py")
     if run_pdb2pqr:
         with tempfile.TemporaryDirectory() as dir:
             pqr_path = Path(dir) / (Path(pdb_path).stem + ".pqr")
@@ -138,7 +142,10 @@ def protein_pdb_to_pdbqt(
                 stdout=subprocess.DEVNULL,
             ).communicate()
             subprocess.Popen(
-                ["python3", prepare_receptor, "-r", pqr_path, "-o", pdbqt_path],
+                [
+                    "python3", prepare_receptor, "-r", pqr_path, "-o",
+                    pdbqt_path
+                ],
                 stderr=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
             ).communicate()
@@ -174,7 +181,9 @@ def local_opt(v: Vina, remove_h=True) -> tuple[Chem.Mol, float]:
     return docked_mol, opt_score
 
 
-def docking(v: Vina, exhaustiveness: int = 8, remove_h=True) -> tuple[Chem.Mol, float]:
+def docking(v: Vina,
+            exhaustiveness: int = 8,
+            remove_h=True) -> tuple[Chem.Mol, float]:
     v.dock(8, 1)
     docking_score = float(v.energies(1)[0][0])
     pose = v.poses(1)

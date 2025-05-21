@@ -6,10 +6,11 @@ import torch
 from rdkit import Chem
 from rdkit.Chem.rdChemReactions import ReactionFromSmarts
 
-from synthflow.pocket_specific.api import SemlaFlowAPI
+from synthflow.api.api import CGFlowAPI
 
 
 class Prediction:
+
     def __init__(
         self,
         cgflow_ckpt_path: str | Path,
@@ -19,15 +20,11 @@ class Prediction:
         num_inference_steps: int = 100,
     ):
         # NOTE: flow-matching module
-        self.cgflow_api = SemlaFlowAPI.from_protein(
-            cgflow_ckpt_path,
-            protein_path,
-            ref_ligand_path,
-            device=device,
-            num_inference_steps=num_inference_steps,
-            fp16=True,
-        )
-        print(self.cgflow_api.cfg)
+        self.cgflow_api = CGFlowAPI(cgflow_ckpt_path,
+                                    num_inference_steps,
+                                    device,
+                                    fp16=True)
+        self.cgflow_api.set_protein(protein_path, ref_ligand_path)
         self.mol_ongoing: Chem.Mol
         self.poses_ongoing: np.ndarray
 
@@ -40,17 +37,22 @@ class Prediction:
         if traj_idx > 0:
             # transfer poses information from previous state to current state if state is updated
             if mol.GetNumAtoms() != self.mol_ongoing.GetNumAtoms():
-                self.poses_ongoing = self.update_coords(mol, self.poses_ongoing)
+                self.poses_ongoing = self.update_coords(
+                    mol, self.poses_ongoing)
             # set the coordinates to flow-matching ongoing state (\\hat{x}_1 -> x_{t-\\delta t})
             mol.GetConformer().SetPositions(self.poses_ongoing)
 
         # run cgflow binding pose prediction (x_{t-\\delta t} -> x_t}
-        upd_mols, traj_xt, traj_x1, _ = self.cgflow_api.run([mol], traj_idx, is_last_step, return_traj=True)
+        upd_mols, traj_xt, traj_x1, _ = self.cgflow_api.run([mol],
+                                                            traj_idx,
+                                                            is_last_step,
+                                                            return_traj=True)
         self.mol_ongoing = Chem.Mol(upd_mols[0])
         self.poses_ongoing = traj_xt[0][-1]
         return upd_mols[0], traj_xt[0], traj_x1[0]
 
-    def update_coords(self, obj: Chem.Mol, prev_coords: np.ndarray) -> np.ndarray:
+    def update_coords(self, obj: Chem.Mol,
+                      prev_coords: np.ndarray) -> np.ndarray:
         out_coords = np.zeros((obj.GetNumAtoms(), 3))
         for atom in obj.GetAtoms():
             if atom.HasProp("react_atom_idx"):
@@ -69,8 +71,13 @@ def get_refined_obj(obj: Chem.Mol) -> Chem.Mol:
     new_conf = Chem.Conformer(new_obj.GetNumAtoms())
 
     is_added = (org_conf.GetPositions() == 0.0).all(-1).tolist()
-    atom_order = list(map(int, org_obj.GetProp("_smilesAtomOutputOrder").strip()[1:-1].split(",")))
-    atom_mapping = [(org_aidx, new_aidx) for new_aidx, org_aidx in enumerate(atom_order) if not is_added[org_aidx]]
+    atom_order = list(
+        map(int,
+            org_obj.GetProp("_smilesAtomOutputOrder").strip()[1:-1].split(
+                ",")))
+    atom_mapping = [(org_aidx, new_aidx)
+                    for new_aidx, org_aidx in enumerate(atom_order)
+                    if not is_added[org_aidx]]
 
     # transfer atomic information (coords, indexing)
     for org_aidx, new_aidx in atom_mapping:
@@ -87,7 +94,9 @@ def get_refined_obj(obj: Chem.Mol) -> Chem.Mol:
 
 
 def remove_star(mol: Chem.Mol) -> tuple[Chem.RWMol, list[int]]:
-    non_star_idcs = [i for i, atom in enumerate(mol.GetAtoms()) if atom.GetSymbol() != "*"]
+    non_star_idcs = [
+        i for i, atom in enumerate(mol.GetAtoms()) if atom.GetSymbol() != "*"
+    ]
     non_star_mol = Chem.RWMol(mol)
     for atom in mol.GetAtoms():
         if atom.GetSymbol() == "*":
@@ -100,13 +109,11 @@ if __name__ == "__main__":
     """Example of how this trainer can be run"""
     target = "ALDH1"
     module = Prediction(
-        # "./weights/crossdocked2020_till_end.ckpt",
-        # "./weights/crossdocked2020_no_overlap.ckpt",
-        "./weights/crossdocked2020.ckpt",
-        # "./weights/plinder.ckpt",
-        f"./data/experiments/LIT-PCBA/{target}/protein.pdb",
-        f"./data/experiments/LIT-PCBA/{target}/ligand.mol2",
+        "./weights/plinder_till_end.ckpt",
+        f"./experiments/data/LIT-PCBA/{target}/protein.pdb",
+        f"./experiments/data/LIT-PCBA/{target}/ligand.mol2",
         "cuda",
+        num_inference_steps=100,
     )
 
     template = "[*:1]-[1*].[*:2]-[2*]>>[*:1]-[*:2]"
@@ -115,7 +122,7 @@ if __name__ == "__main__":
     path = [
         "[1*]c1cc(C(=O)O)c2c(c1)C(=O)CC2",
         "[2*]NC(=O)C[1*]",
-        "[2*]c1cn(CN)nn1",
+        "[2*]c1cn(C)nn1",
     ]
 
     history: list[tuple[Chem.Mol, np.ndarray, np.ndarray]] = []

@@ -17,7 +17,7 @@ from .utils import PLINDER_COORDS_STD_DEV
 
 BATCH_COST = 8000
 BUCKET_SIZES = [16, 32, 48, 64]
-MAX_NUM_BATCH = 64
+MAX_NUM_BATCH = 32
 
 
 class CGFlow_DM(GeometricInterpolantDM):

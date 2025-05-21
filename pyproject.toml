@@ -38,6 +38,7 @@ dependencies = [
   "biopython",
   "openbabel-wheel==3.1.1.20",
   "rdkit>=2023.9.4",
+  # "plinder",
   # additional
   "typing_extensions",                                                                                # is it really required?
   "wandb",
@@ -49,8 +50,9 @@ dependencies = [
   "vina",
   "pdb2pqr",
   "unidock_tools @ git+https://github.com/dptech-corp/Uni-Dock.git@1.1.2#subdirectory=unidock_tools",
-  "pharmaconet @ git+https://github.com/SeonghwanSeo/PharmacoNet.git",
   "AutoDockTools_py3 @ git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3",
+  "pharmaconet @ git+https://github.com/SeonghwanSeo/PharmacoNet.git",
+  "druglikeness @ git+https://github.com/SeonghwanSeo/drug-likeness.git",
 ]
 
 [project.optional-dependencies]

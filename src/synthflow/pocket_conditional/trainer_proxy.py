@@ -119,12 +119,14 @@ class Proxy_MultiPocket_Trainer(RxnFlow3DTrainer):
         base.cond.temperature.dist_params = [1, 64]
 
         # model training
-        base.algo.train_random_action_prob = 0.2
+        base.algo.train_random_action_prob = 0.1
         base.algo.num_from_policy = 16
+
         base.replay.use = True
-        base.replay.capacity = 16 * 500
-        base.replay.warmup = 16 * 20
+        base.replay.num_new_samples = 16
         base.replay.num_from_replay = 16 * 3
+        base.replay.warmup = 16 * 20
+        base.replay.capacity = 16 * 500
         base.num_workers_retrosynthesis = 4
 
         # training learning rate

@@ -18,14 +18,21 @@ experiments/data/LIT-PCBA/
 # semlaflow
 .gvp_cache/
 docking_pipeline/
+experiments/data/LIT-PCBA/*/pocket*.pdb
+experiments/data/LIT-PCBA/*/*.pdbqt
 **/weights/*.ckpt
 tony/v0/notebooks/
 tony/v1/temp/
 result/
 evaluation_results/
+experimental/tony/v1/notebooks/temp/*
 
 # pharmaconet
 PharmacoNet/
+# running
+weights/
+weights.tar
+experiments/data/test/
 
 # package
 build/
@@ -67,3 +74,15 @@ __pycache__/
 # experimental code
 src/app
 weights
+
+
+# Versions
+=0.6.18
+=1.6.3
+=2.1.2
+=2.4.0
+experiments/=0.6.18
+experiments/=1.6.3
+experiments/=12
+experiments/=2.1.2
+experiments/=2.4.0

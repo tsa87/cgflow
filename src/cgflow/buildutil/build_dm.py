@@ -202,7 +202,7 @@ def _get_dataset_cls(data_config):
         raise ValueError(f"Unknown dataset type {data_config.dataset_type}")
 
 
-def get_datasets(transform_fn, data_config, mode="train"):
+def get_datasets(transform_fn, data_config, mode="train", length=1e9):
     DatasetClass = _get_dataset_cls(data_config)
     if mode == "train":
         key_path = data_config.train_key_path
@@ -210,8 +210,17 @@ def get_datasets(transform_fn, data_config, mode="train"):
     else:
         key_path = data_config.val_key_path
         lmdb_path = data_config.val_lmdb_path
+
+    # Take the subset of the keys if length is specified
+    keys = []
+    with open(key_path, 'r') as f:
+        for line in f:
+            keys.append(line.strip())
+    if length < len(keys):
+        keys = keys[:length]
+
     return DatasetClass(
-        key_path=key_path,
+        keys=keys,
         lmdb_path=lmdb_path,
         transform=transform_fn,
         max_length=data_config.max_length,
@@ -341,13 +350,19 @@ def build_dm(args, vocab, batch=None, mode="train"):
 
     # For training - which loads the dataset from disk
     if batch is None and mode == "train":
-        train_dataset = get_datasets(transform_fn, data_config, mode="train")
-        val_dataset = get_datasets(transform_fn, data_config, mode="val")
+        train_dataset = get_datasets(transform_fn,
+                                     data_config,
+                                     mode="train",
+                                     length=args.n_training_mols)
+        val_dataset = get_datasets(transform_fn,
+                                   data_config,
+                                   mode="val",
+                                   length=args.n_validation_mols)
 
-        if args.n_validation_mols < len(val_dataset):
-            val_dataset = val_dataset.sample(args.n_validation_mols)
-        if args.n_training_mols < len(train_dataset):
-            train_dataset = train_dataset.sample(args.n_training_mols)
+        # if args.n_validation_mols < len(val_dataset):
+        #     val_dataset = val_dataset.sample()
+        # if args.n_training_mols < len(train_dataset):
+        #     train_dataset = train_dataset.sample(args.n_training_mols)
 
     # For prediction - which loads the dataset from batch
     elif batch is None and mode == "val":

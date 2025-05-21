@@ -64,15 +64,13 @@ class SmolDataset(ABC, torch.utils.data.Dataset):
 
 class LMDBSmolDataset(ABC, torch.utils.data.Dataset):
 
-    def __init__(self, key_path, lmdb_path, max_length=None, transform=None):
+    def __init__(self, keys, lmdb_path, max_length=None, transform=None):
         super().__init__()
         self.max_length = max_length if max_length is not None else float(
             'inf')
 
-        self.keys = []
-        with open(key_path, 'r') as f:
-            for line in f:
-                self.keys.append(line.strip())
+        self.keys = keys
+            
         self.transform = transform
 
         self.lmdb_path = str(lmdb_path)
@@ -195,7 +193,6 @@ class LMDBPocketComplexDataset(LMDBSmolDataset):
         except Exception as e:
             print(f"[error] Skipping idx {item} due to: {e}")
             return self.__getitem__(np.random.randint(0, len(self)))
-
 
 class EfficentLMDBPocketComplexDataset(LMDBSmolDataset):
 

@@ -34,17 +34,25 @@ This project builds upon prior work including:
 
 ```bash
 # Create and activate conda environment
-conda create --name cgflow python=3.11
-conda activate cgflow
+# 1. Create and activate environment using mamba
+mamba create -n cgflow python=3.11 -c conda-forge -y
+mamba activate cgflow
 
-# Install PyTorch and PyTorch Geometric with CUDA 12.4 support
-pip install torch==2.6.0 torch-geometric>=2.4.0 torch-scatter>=2.1.2 torch-sparse>=0.6.18 torch-cluster>=1.6.3 -f https://data.pyg.org/whl/torch-2.6.0+cu124.html
+# 2. Install system-level packages with mamba
+mamba install -c conda-forge notebook unidock pip -y
 
-# Install the package in editable mode
+# 3. Install PyTorch + PyG (CUDA 12.4 support) via pip
+pip install torch==2.6.0 \
+    torch-geometric>=2.4.0 \
+    torch-scatter>=2.1.2 \
+    torch-sparse>=0.6.18 \
+    torch-cluster>=1.6.3 \
+    -f https://data.pyg.org/whl/torch-2.6.0+cu124.html
+
+# 4. Install your package (editable)
 pip install -e .
 
-# Install additional dependencies
-conda install -c conda-forge notebook unidock_env unidock
+# 5. Install optional dependencies
 pip install -e '.[extra]'
 ```
 
@@ -83,22 +91,27 @@ python scripts/b_create_env.py -b building_blocks/enamine_catalog.smi -o envs/ca
 
 #### Option B: Download Prepared Files
 ```bash
+mkdir -p experiments/data/envs
 cd experiments/data/envs
-gdown https://drive.google.com/uc?id=192RuXBzM51Mk__-kSKcCs4kthnKHWAgm
+gdown 11EXcLEFzpD430ML0gt5Lwnx65PQfHIVP
 tar -xzvf stock.tar.gz
 ```
 
 ## Running Experiments
 
-### 1. Train General State Flow (Pose Prediction)
+### 1. Train General State Flow first (Pose Prediction)
 
 Train the state flow model for pose prediction:
 ```bash
 sh scripts/A_semlaflow_train_crossdocked.sh
 ```
+You can also download the pretrained model weights from [here](https://drive.google.com/file/d/1UpdOxfMVdALdAPpzG_dXF72diP2AbHOl/view?usp=sharing)
+```bash
+cd weights
+gdown 1UpdOxfMVdALdAPpzG_dXF72diP2AbHOl
+```
 Note: This script trains pose prediction on Plinder dataset rather than the CrossDocked dataset as done in the paper experiments.
 Plinder is a larger dataset, and we used unbiased pocket extraction. Therefore the pose prediction performance is improved compared to reported result.
-We'll release the pretrained checkpoint for Plinder training soon.
 
 For reproducing paper results, use pretrained model weights:
 ```bash
@@ -112,6 +125,19 @@ curl -L -o weights/crossdocked2020_till_end.ckpt https://figshare.com/ndownloade
 cd experiments
 wandb sweep sweep/redock.yaml
 wandb agent <sweep-id>
+```
+
+### 2.A Pocket-specific Optimization (LIT-PCBA) for custom pocket
+
+Custom generation expects `<DATA_FOLDER>/<PROTEIN>` folder contain `protein.pdb` and `ligand.mol2`. Please see `./data/LIT-PCBA/ADRB2` for an example.
+
+The `ligand.mol2` is the reference ligand. It is only needed for extracting the pocket from the `protein.pdb`. If you don't have a reference ligand, you can just dock any ligand to the target protein pocket to obtain it.
+```bash
+cd experiments
+python ./scripts/run1_redock_unidock.py redock <LOG_DIR> ./data/envs/stock/ <DATA_FOLDER> ../weights/plinder_till_end.ckpt <PROTEIN> <SEED> 50
+
+# Example for LIT-PCBA pocket ADRB2
+python ./scripts/run1_redock_unidock.py redock ./logs/exp1-redocking/ ./data/envs/stock/ ./data/LIT-PCBA/ ../weights/plinder_till_end.ckpt ADRB2 0  50
 ```
 
 ![LIT-PCBA results](assets/lit-pcba-results.png)
@@ -181,13 +207,3 @@ If you use this work, please cite:
   url={https://openreview.net/forum?id=N8cPv95zOU}
 }
 ```
-
-
-## Instructions for Public Release
-```bash
-cat .gitignore > exclude.txt
-echo '.git/*' >> exclude.txt
-echo '.experimental/*' >> exclude.txt
-rsync -av --exclude-from=exclude.txt . ../cgflow/
-```
-

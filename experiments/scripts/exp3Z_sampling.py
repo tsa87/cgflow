@@ -26,11 +26,13 @@ def set_seed(seed: int):
 
 
 if __name__ == "__main__":
-    temperature = [48.0, 64.0]
+    temperature = [16.0, 64.0]
     # ckpt_path = "./logs/exp3-pocket_conditional/localopt-fm100-sr10/model_state_5000.pt"
     # save_path = Path("./result/localopt-fm100-sr10/5k-u32/")
-    ckpt_path = "./logs/exp3-pocket_conditional/proxy-fm100-sr10/model_state_12000.pt"
-    save_path = Path("./result/proxy-fm100-sr10/12k-u48/")
+    # ckpt_path = "./logs/exp3-pocket_conditional/proxy-fm100-sr10/model_state_12000.pt"
+    ckpt_path = "./weights/sbdd-stock-zincdock/model_state_16000.pt"
+
+    save_path = Path("./result/service/zincdock-proxy/16k-u16/")
     print(ckpt_path)
     print(save_path)
 
@@ -41,7 +43,8 @@ if __name__ == "__main__":
 
     # NOTE: Create sampler
     config = init_empty(Config())
-    config.algo.action_subsampling.sampling_ratio = 1.0
+    config.cgflow.ckpt_path = "../weights/crossdocked2020_till_end.ckpt"
+    config.algo.action_subsampling.sampling_ratio = 0.1
     config.algo.num_from_policy = 100  # batch size
     device = "cuda"
     sampler = PocketConditionalSampler(config, ckpt_path, device)

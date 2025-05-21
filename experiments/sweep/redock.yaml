@@ -1,5 +1,5 @@
-project: "cgflow"
-program: ./scripts/exp1_litpcba_mogfn.py
+project: "cgflow-cameraready"
+program: ./scripts/exp1_redock_unidock.py
 name: "redock"
 
 command:
@@ -8,9 +8,9 @@ command:
   - ${program}
   - redock # group
   - ./logs/exp1-redocking/ # storage
-  - ../data/envs/catalog/ # env dir
-  - ../data/experiments/LIT-PCBA/ # pocket dir
-  - ../weights/crossdocked2020_till_end.ckpt # ckpt
+  - ./data/envs/stock/ # env dir
+  - ./data/LIT-PCBA/ # pocket dir
+  - ../weights/plinder_till_end.ckpt # ckpt
 
 method: grid
 parameters:
@@ -34,4 +34,4 @@ parameters:
   seed:
     values: [0, 1, 2]
   num_inference_steps:
-    value: 80
+    value: 50
