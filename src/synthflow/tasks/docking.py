@@ -9,6 +9,7 @@ from torch import Tensor
 
 from rxnflow.base import BaseTask
 from rxnflow.utils.chem_metrics import mol2qed, mol2sascore
+
 from synthflow.config import Config
 from synthflow.utils.extract_pocket import get_mol_center
 
@@ -20,16 +21,22 @@ class BaseDockingTask(BaseTask):
 
     def __init__(self, cfg: Config):
         super().__init__(cfg)
-
         # binding affinity estimation
         self.redocking = cfg.task.docking.redocking
         self.ff_opt = cfg.task.docking.ff_opt
 
-        # docking
         self.protein_path: Path = Path(cfg.task.docking.protein_path)
-
-        x, y, z = get_mol_center(cfg.task.docking.ref_ligand_path)
-        self.center: tuple[float, float, float] = round(x, 3), round(y, 3), round(z, 3)
+        self.size: tuple[float, float, float] = cfg.task.docking.size
+        # set center
+        if cfg.task.docking.center is not None:
+            center = cfg.task.docking.center
+        else:
+            assert cfg.task.docking.ref_ligand_path is not None, (
+                "Neither center coordinates nor a reference ligand path is provided."
+            )
+            cx, cy, cz = get_mol_center(cfg.task.docking.ref_ligand_path)
+            center = round(cx, 3), round(cy, 3), round(cz, 3)
+        self.center: tuple[float, float, float] = center
 
         self.filter: str | None = cfg.task.constraint.rule
         assert self.filter in [None, "lipinski", "veber"]

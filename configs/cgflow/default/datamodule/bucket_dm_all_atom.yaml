@@ -1,0 +1,6 @@
+_registry_: "datamodule"
+_type_: BucketDataModule
+batch_cost: 2048
+num_workers: 3
+bucket_limits: [256, 512, 768, 1024, 1536, 2048]
+bucket_cost_scale: "linear"

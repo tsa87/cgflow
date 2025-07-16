@@ -1,16 +1,16 @@
 project: "cgflow-cameraready"
 program: ./scripts/exp1_redock_unidock.py
-name: "redock"
+name: "redock-catalog"
 
 command:
   - ${env}
   - python
   - ${program}
-  - redock # group
+  - redock-catalog # group
   - ./logs/exp1-redocking/ # storage
-  - ./data/envs/stock/ # env dir
-  - ./data/LIT-PCBA/ # pocket dir
-  - ../weights/plinder_till_end.ckpt # ckpt
+  - ./data/envs/catalog/ # env dir
+  - ./data/test/LIT-PCBA/ # pocket dir
+  - ../weights/final/crossdock_epoch27.ckpt # ckpt
 
 method: grid
 parameters:
@@ -34,4 +34,4 @@ parameters:
   seed:
     values: [0, 1, 2]
   num_inference_steps:
-    value: 50
+    value: 20

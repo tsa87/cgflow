@@ -1,48 +1,31 @@
 from pathlib import Path
 from typing import Any
 
-import torch
-from torch import Tensor
 from typing_extensions import override
 
-from synthflow.base.sampler import RxnFlow3DSampler
-from synthflow.pocket_conditional.env import SynthesisEnvContext3D_pocket_conditional
-
-"""
-Summary
-- ProxyTask: Base Class
-- ProxyTask_MultiPocket & ProxyTrainer_MultiPocket: Train Pocket-Conditioned RxnFlow.
-"""
+from synthflow.base.sampler import SynthFlowSampler
 
 
-class PocketConditionalSampler(RxnFlow3DSampler):
-    ctx: SynthesisEnvContext3D_pocket_conditional
-
-    def setup_env_context(self):
-        ckpt_path = self.cfg.cgflow.ckpt_path
-        use_predicted_pose = self.cfg.cgflow.use_predicted_pose
-        num_inference_steps = self.cfg.cgflow.num_inference_steps
-        self.ctx = SynthesisEnvContext3D_pocket_conditional(
-            self.env,
-            self.task.num_cond_dim,
-            ckpt_path,
-            use_predicted_pose,
-            num_inference_steps,
-        )
-
-    def set_pocket(self, pocket_path: str | Path):
+class PocketConditionalSampler(SynthFlowSampler):
+    def set_pocket(
+        self,
+        protein_path: str | Path,
+        center: tuple[float, float, float] | None = None,
+        ref_ligand_path: str | Path | None = None,
+        extract: bool = True,
+    ):
         """setup pose prediction model"""
-        self.ctx.set_pocket(pocket_path)
-        self.pocket_cond = self.ctx._tmp_pocket_cond
+        self.ctx.set_pocket(protein_path, center, ref_ligand_path, extract)
 
-    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
-        cond_info = super().sample_conditional_information(n, train_it)
-        pocket_cond = self.pocket_cond.reshape(1, -1).repeat(n, 1)
-        cond_info["encoding"] = torch.cat([cond_info["encoding"], pocket_cond], dim=1)
-        return cond_info
-
-    def sample_against_pocket(self, pocket_path: str | Path, n: int):
-        self.set_pocket(pocket_path)
+    def sample_against_pocket(
+        self,
+        n: int,
+        protein_path: str | Path,
+        center: tuple[float, float, float] | None = None,
+        ref_ligand_path: str | Path | None = None,
+    ):
+        """setup pose prediction model"""
+        self.set_pocket(protein_path, center, ref_ligand_path)
         return self.sample(n)
 
     @override

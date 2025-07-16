@@ -1,4 +1,3 @@
-
 import networkx as nx
 import numpy as np
 import rdkit.Chem as Chem
@@ -86,7 +85,10 @@ class MolBuildingEnvContext(GraphBuildingEnvContext):
         self.atom_attr_logit_slice = {
             k: (s, e)
             for k, s, e in zip(
-                self.settable_atom_attrs, [0] + list(np.cumsum(num_atom_logits)), np.cumsum(num_atom_logits), strict=False
+                self.settable_atom_attrs,
+                [0] + list(np.cumsum(num_atom_logits)),
+                np.cumsum(num_atom_logits),
+                strict=False,
             )
         }
         # The attribute and value each logit dimension maps back to
@@ -112,7 +114,9 @@ class MolBuildingEnvContext(GraphBuildingEnvContext):
         num_bond_logits = [len(self.bond_attr_values[i]) - 1 for i in self.bond_attrs]
         self.bond_attr_logit_slice = {
             k: (s, e)
-            for k, s, e in zip(self.bond_attrs, [0] + list(np.cumsum(num_bond_logits)), np.cumsum(num_bond_logits), strict=False)
+            for k, s, e in zip(
+                self.bond_attrs, [0] + list(np.cumsum(num_bond_logits)), np.cumsum(num_bond_logits), strict=False
+            )
         }
         self.bond_attr_logit_map = [(k, v) for k in self.bond_attrs for v in self.bond_attr_values[k][1:]]
         self._bond_valence = {

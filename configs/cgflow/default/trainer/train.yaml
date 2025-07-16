@@ -1,0 +1,15 @@
+save_dir: ./result/
+wandb_project: "cgflow"
+wandb_name: crossdock
+wandb_group: "train"
+epoch: 10000
+check_val_every_n_epoch: 1
+val_check_interval: null
+checkpoint_epochs: 1
+log_every_n_steps: 10
+num_gpus: 1
+monitor: "val/rmsd"
+monitor_mode: "min"
+accumulate_grad_batches: 1
+gradient_clip_val: 1.0
+precision: bf16-mixed

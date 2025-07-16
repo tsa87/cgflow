@@ -1,0 +1,10 @@
+_registry_: "model"
+_type_: ResidueEncoder
+d_equi: 64
+d_inv: 256
+d_edge: 64
+n_layers: 4
+n_attn_heads: 64 # n heads = 4
+d_message: 64
+d_message_ff: 128
+fixed_equi: False

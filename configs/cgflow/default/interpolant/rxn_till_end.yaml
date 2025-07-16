@@ -1,0 +1,9 @@
+_registry_: "interpolant"
+_type_: ARGeometricInterpolant
+decomposition_strategy: "reaction"
+ordering_strategy: "connected"
+noise_std: 0.2
+max_num_cuts: 2 # cut up to N+1 fragments
+t_per_ar_action: 0.3 # t_per_ar_action * max_num_cuts should be less than 1
+max_interp_time: 1.0 # if fragment is added at t, it is denoised until t + max_interp_time
+min_group_size: 5 # min fragment size

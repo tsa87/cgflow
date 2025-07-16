@@ -1,79 +1,59 @@
-from copy import deepcopy
-from typing import Self
-
+import torch
+from rdkit import Chem
 from torch import Tensor
 
-import cgflow.util.rdkit as smolRD
-from cgflow.util.tokeniser import Vocabulary
 
-GEOM_COORDS_STD_DEV = 2.407038688659668
-PLINDER_COORDS_STD_DEV = GEOM_COORDS_STD_DEV  # 2.2693647416252976
-
-_SPECIAL_TOKENS = ["<PAD>", "<MASK>"]
-_CORE_ATOMS = ["H", "C", "N", "O", "F", "P", "S", "Cl"]
-_OTHER_ATOMS = ["Br", "B", "Al", "Si", "As", "I", "Hg", "Bi"]
-
-_TOKENS = _SPECIAL_TOKENS + _CORE_ATOMS + _OTHER_ATOMS
-N_ATOM_TYPES = len(_TOKENS)
-N_EXTRA_ATOM_FEATS = 2  # times, relative times
-N_RESIDUE_TYPES = len(smolRD.IDX_RESIDUE_MAP)
-N_BOND_TYPES = len(smolRD.BOND_IDX_MAP) + 1
-N_CHARGE_TYPES = len(smolRD.CHARGE_IDX_MAP)
+# Helper functions
+def remove_dummy(mol: Chem.Mol) -> tuple[Chem.RWMol, list[bool]]:
+    """return a new mol without dummy atoms."""
+    is_valid: list[bool] = [atom.GetSymbol() != "*" for atom in mol.GetAtoms()]
+    mol_wo_dummy = Chem.RWMol(mol)
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() == "*":
+            mol_wo_dummy.RemoveAtom(atom.GetIdx())
+    # return RWMol to avoid sanitizie issue
+    return mol_wo_dummy, is_valid
 
 
-def build_vocab():
-    return Vocabulary(_TOKENS)
-
-
-class ComplexBatch:
-    def __init__(self, ligands: dict[str, Tensor], pockets: dict[str, Tensor]):
-        self.ligands: dict[str, Tensor] = ligands  # batch
-        self.pockets: dict[str, Tensor] = pockets  # batch
-
-        self.complexs: dict[str, Tensor] = {}
-        self.complexs["adj_matrix"] = self.ligand_atom_mask.unsqueeze(2) & self.pocket_atom_mask.unsqueeze(1)
-
-    @property
-    def ligand_coords(self) -> Tensor:
-        return self.ligands["coords"]
-
-    @property
-    def ligand_atom_types(self) -> Tensor:
-        return self.ligands["atomics"]
-
-    @property
-    def ligand_bond_types(self) -> Tensor:
-        return self.ligands["bonds"]
-
-    @property
-    def ligand_atom_mask(self) -> Tensor:
-        # TODO: implement when mask is None
-        assert self.ligands["mask"] is not None
-        return self.ligands["mask"]
-
-    @property
-    def pocket_coords(self) -> Tensor:
-        return self.pockets["coords"]
-
-    @property
-    def pocket_equis(self) -> Tensor | None:
-        return self.pockets.get("equis", None)
-
-    @property
-    def pocket_invs(self) -> Tensor | None:
-        return self.pockets.get("invs", None)
-
-    @property
-    def pocket_atom_mask(self) -> Tensor:
-        # TODO: implement when mask is None
-        assert self.pockets["mask"] is not None
-        return self.pockets["mask"]
-
-    def clone(self, deep_copy: bool = False) -> Self:
-        if deep_copy:
-            return deepcopy(self)
+def extend_tensor(x: Tensor, is_valid: list[bool], is_batched: bool = False) -> Tensor:
+    """Extend the tensor with padding
+    - is_batched=True  : [V', ...] to [V, ...]
+    - is_batched=False : [B,V', ...] to [B,V, ...]
+    """
+    num_atoms = len(is_valid)
+    if is_batched:
+        if x.shape[1] == num_atoms:
+            return x
         else:
-            return self.__class__(
-                self.ligands.copy(),
-                self.pockets.copy(),
-            )
+            expanded_x = torch.zeros((x.shape[0], num_atoms, *x.shape[2:]), dtype=x.dtype)
+            expanded_x[:, is_valid] = x
+            return expanded_x
+    else:
+        if x.shape[0] == num_atoms:
+            return x
+        else:
+            expanded_x = torch.zeros((num_atoms, *x.shape[1:]), dtype=x.dtype)
+            expanded_x[is_valid] = x
+            return expanded_x
+
+
+def pad_tensors(tensors: list[Tensor], pad_dim: int = 0) -> Tensor:
+    """Pad a list of tensors with zeros
+
+    All dimensions other than pad_dim must have the same shape. A single tensor is returned with the batch dimension
+    first, where the batch dimension is the length of the tensors list.
+
+    Args:
+        tensors (list[Tensor]): List of tensors
+        pad_dim (int): Dimension on tensors to pad. All other dimensions must be the same size.
+
+    Returns:
+        Tensor: Batched, padded tensor, if pad_dim is 0 then shape [B, L, *] where L is length of longest tensor.
+    """
+
+    if pad_dim != 0:
+        # TODO
+        raise NotImplementedError()
+
+    padded = torch.nn.utils.rnn.pad_sequence(tensors, batch_first=True)
+    return padded

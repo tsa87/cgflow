@@ -1,0 +1,44 @@
+trainer:
+  _yaml_: default/trainer/train.yaml
+  wandb_name: plinder
+  wandb_group: train
+  save_dir: ./result/pretrain/plinder
+  num_gpus: 8
+
+datamodule:
+  _yaml_: default/datamodule/bucket_dm.yaml
+  batch_cost: 7500
+  num_workers: 3
+
+train_dataset:
+  _yaml_: default/dataset/complex_lmdb.yaml
+  data_path: ./data/experiments/cgflow/plinder/lmdb/train/
+  key_path: ./data/experiments/cgflow/plinder/keys/train.txt
+
+val_dataset:
+  _yaml_: default/dataset/complex_lmdb.yaml
+  data_path: ./data/experiments/cgflow/plinder/lmdb/val/
+  key_path: ./data/experiments/cgflow/plinder/keys/val.txt
+
+test_dataset: null
+
+cfm:
+  _yaml_: default/cfm/ar_fm.yaml
+
+interpolant:
+  _yaml_: default/interpolant/rxn_till_end.yaml
+
+pocket_encoder:
+  _yaml_: default/model/pocket_base.yaml
+
+ligand_decoder:
+  _yaml_: default/model/ligand_base.yaml
+
+prior_dist:
+  _yaml_: default/prior_dist/gaussian.yaml
+
+time_dist:
+  _yaml_: default/time_dist/beta.yaml
+
+transform:
+  _yaml_: default/transform/complex.yaml

@@ -5,8 +5,6 @@ from itertools import product
 import numpy as np
 import torch
 import torch.nn as nn
-from botorch.utils.multi_objective import infer_reference_point, pareto
-from botorch.utils.multi_objective.hypervolume import Hypervolume
 from rdkit import Chem, DataStructs
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
@@ -30,9 +28,9 @@ def compute_focus_coef(
     :param focus_limit_coef: the focus coefficient at the limit of the focus region
     """
     assert focus_cosim >= 0.0 and focus_cosim <= 1.0, f"focus_cosim must be in [0, 1], now {focus_cosim}"
-    assert (
-        focus_limit_coef > 0.0 and focus_limit_coef <= 1.0
-    ), f"focus_limit_coef must be in (0, 1], now {focus_limit_coef}"
+    assert focus_limit_coef > 0.0 and focus_limit_coef <= 1.0, (
+        f"focus_limit_coef must be in (0, 1], now {focus_limit_coef}"
+    )
     focus_gamma_param = torch.tensor(np.log(focus_limit_coef) / np.log(focus_cosim)).float()
     cosim = nn.functional.cosine_similarity(flat_rewards, focus_dirs, dim=1)
     in_focus_mask = cosim >= focus_cosim
@@ -51,39 +49,6 @@ def get_limits_of_hypercube(n_dims, n_points_per_dim=10):
     grid = np.array(list(product(*linear_spaces)))
     extreme_points = grid[np.any(grid == 1, axis=1)]
     return extreme_points
-
-
-def get_IGD(samples, ref_front: np.ndarray = None):
-    """
-    Computes the Inverse Generational Distance of a set of samples w.r.t a reference pareto front.
-    see: https://www.sciencedirect.com/science/article/abs/pii/S0377221720309620
-
-    For each point of a reference pareto front `ref_front`, compute the distance to the closest
-    sample. Returns the average of these distances.
-
-    Args:
-        front (ndarray): A numpy array containing the coordinates of the points
-            on the Pareto front. The tensor should have shape (n_points, n_objectives).
-        ref_front (ndarray): A numpy array containing the coordinates of the points
-            on the true Pareto front. The tensor should have shape (n_true_points, n_objectives).
-
-    Returns:
-        float: The IGD value.
-    """
-    n_objectives = samples.shape[1]
-    if ref_front is None:
-        ref_front = get_limits_of_hypercube(n_dims=n_objectives)
-
-    # Compute the distances between each generated sample and each reference point.
-    distances = cdist(samples, ref_front).T
-
-    # Find the minimum distance for each point on the front.
-    min_distances = np.min(distances, axis=1)
-
-    # Compute the igd as the average of the minimum distances.
-    igd = np.mean(min_distances, axis=0)
-
-    return float(igd)
 
 
 def get_PC_entropy(samples, ref_front=None):
@@ -172,67 +137,6 @@ def partition_hypersphere(k: int, d: int, n_samples: int = 10000, normalisation:
 def generate_simplex(dims, n_per_dim):
     spaces = [np.linspace(0.0, 1.0, n_per_dim) for _ in range(dims)]
     return np.array([comb for comb in product(*spaces) if np.allclose(sum(comb), 1.0)])
-
-
-def pareto_frontier(obj_vals, maximize=True):
-    """
-    Compute the Pareto frontier of a set of candidate solutions.
-    ----------
-    Parameters
-        candidate_pool: NumPy array of candidate objects
-        obj_vals: NumPy array of objective values
-    ----------
-    """
-    # pareto utility assumes maximization
-    if maximize:
-        pareto_mask = pareto.is_non_dominated(torch.tensor(obj_vals))
-    else:
-        pareto_mask = pareto.is_non_dominated(-torch.tensor(obj_vals))
-    return obj_vals[pareto_mask]
-
-
-# From https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
-def is_pareto_efficient(costs, return_mask=True):
-    """
-    Find the pareto-efficient points
-    :param costs: An (n_points, n_costs) array
-    :param return_mask: True to return a mask
-    :return: An array of indices of pareto-efficient points.
-        If return_mask is True, this will be an (n_points, ) boolean array
-        Otherwise it will be a (n_efficient_points, ) integer array of indices.
-    """
-    is_efficient = np.arange(costs.shape[0])
-    n_points = costs.shape[0]
-    next_point_index = 0  # Next index in the is_efficient array to search for
-    while next_point_index < len(costs):
-        nondominated_point_mask = np.any(costs < costs[next_point_index], axis=1)
-        nondominated_point_mask[next_point_index] = True
-        is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
-        costs = costs[nondominated_point_mask]
-        next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
-    if return_mask:
-        is_efficient_mask = np.zeros(n_points, dtype=bool)
-        is_efficient_mask[is_efficient] = True
-        return is_efficient_mask
-    else:
-        return is_efficient
-
-
-def get_hypervolume(flat_rewards: torch.Tensor, zero_ref=True) -> float:
-    """Compute the hypervolume of a set of trajectories.
-    Parameters
-    ----------
-    flat_rewards: torch.Tensor
-      A tensor of shape (num_trajs, num_of_objectives) containing the rewards of each trajectory.
-    """
-    # Compute the reference point
-    if zero_ref:
-        reference_point = torch.zeros_like(flat_rewards[0])
-    else:
-        reference_point = infer_reference_point(flat_rewards)
-    # Compute the hypervolume
-    hv_indicator = Hypervolume(reference_point)  # Difference
-    return hv_indicator.compute(flat_rewards)
 
 
 def uniform_reference_points(nobj, p=4, scaling=None):

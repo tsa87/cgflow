@@ -1,4 +1,3 @@
-import contextlib
 import os
 import subprocess
 import tempfile
@@ -11,6 +10,8 @@ from meeko import MoleculePreparation, PDBQTMolecule, PDBQTWriterLegacy, RDKitMo
 from openbabel import pybel
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers
 from vina import Vina
+
+from .misc import suppress_stdout
 
 
 def get_mol_coords(mol_path: str | Path) -> np.ndarray:
@@ -42,9 +43,7 @@ def create_vina_from_protein(
     seed: int = 1,
     verbose: bool = False,
 ) -> Vina:
-
     protein_path = Path(protein_path)
-    
     if protein_path.suffix == ".pdbqt":
         protein_pdbqt_path = protein_path
     elif protein_path.suffix == ".pdb":
@@ -67,16 +66,6 @@ def create_vina_from_protein(
         center = round(x, 3), round(y, 3), round(z, 3)
     v.compute_vina_maps(center, size)
     return v
-
-
-def suppress_stdout(func):
-
-    def wrapper(*a, **ka):
-        with open(os.devnull, "w") as devnull:
-            with contextlib.redirect_stdout(devnull):
-                return func(*a, **ka)
-
-    return wrapper
 
 
 @suppress_stdout
@@ -109,8 +98,7 @@ def ligand_rdmol_to_pdbqt_string(
     else:
         """Simple pdbqt conversion with obabel"""
         # TODO: check whether following code do work or not.
-        pbmol: pybel.Molecule = pybel.readstring("sdf",
-                                                 Chem.MolToMolBlock(rdmol))
+        pbmol: pybel.Molecule = pybel.readstring("sdf", Chem.MolToMolBlock(rdmol))
         return pbmol.write("pdbqt")
 
 
@@ -131,8 +119,7 @@ def protein_pdb_to_pdbqt(
     pdbqt_path: str | Path,
     run_pdb2pqr: bool = True,
 ):
-    prepare_receptor = os.path.join(AutoDockTools.__path__[0],
-                                    "Utilities24/prepare_receptor4.py")
+    prepare_receptor = os.path.join(AutoDockTools.__path__[0], "Utilities24/prepare_receptor4.py")
     if run_pdb2pqr:
         with tempfile.TemporaryDirectory() as dir:
             pqr_path = Path(dir) / (Path(pdb_path).stem + ".pqr")
@@ -142,10 +129,7 @@ def protein_pdb_to_pdbqt(
                 stdout=subprocess.DEVNULL,
             ).communicate()
             subprocess.Popen(
-                [
-                    "python3", prepare_receptor, "-r", pqr_path, "-o",
-                    pdbqt_path
-                ],
+                ["python3", prepare_receptor, "-r", pqr_path, "-o", pdbqt_path],
                 stderr=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
             ).communicate()
@@ -181,10 +165,8 @@ def local_opt(v: Vina, remove_h=True) -> tuple[Chem.Mol, float]:
     return docked_mol, opt_score
 
 
-def docking(v: Vina,
-            exhaustiveness: int = 8,
-            remove_h=True) -> tuple[Chem.Mol, float]:
-    v.dock(8, 1)
+def docking(v: Vina, exhaustiveness: int = 8, remove_h=True) -> tuple[Chem.Mol, float]:
+    v.dock(exhaustiveness, 1)
     docking_score = float(v.energies(1)[0][0])
     pose = v.poses(1)
     docked_mol = ligand_pdbqt_string_to_rdmol(pose)

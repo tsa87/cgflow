@@ -78,7 +78,8 @@ class TabularFocusModel(FocusModel):
 
         for idxs, count in zip(
             [focus_dirs_indices, flat_rewards_indices],
-            [self.focus_dir_count, self.focus_dir_population_count], strict=False,
+            [self.focus_dir_count, self.focus_dir_population_count],
+            strict=False,
         ):
             idx_increments = torch.bincount(idxs, minlength=len(count))
             count += idx_increments

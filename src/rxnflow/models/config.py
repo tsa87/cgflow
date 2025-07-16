@@ -1,18 +1,16 @@
 from dataclasses import dataclass, field
 
-from gflownet.utils.misc import StrictDataClass
 
-
-@dataclass
-class GraphTransformerConfig(StrictDataClass):
+@dataclass(slots=True)
+class GraphTransformerConfig:
     num_heads: int = 2
     ln_type: str = "pre"
-    num_layers: int = 3
+    num_layers: int = 4
     concat_heads: bool = True
 
 
-@dataclass
-class ModelConfig(StrictDataClass):
+@dataclass(slots=True)
+class ModelConfig:
     """Generic configuration for models
 
     Attributes

@@ -1,0 +1,4 @@
+_registry_: "time_distribution"
+_type_: BetaTimeDistribution
+alpha: 1.0
+beta: 1.0

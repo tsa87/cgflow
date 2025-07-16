@@ -1,7 +1,6 @@
 import random
 from pathlib import Path
 
-import torch
 from pmnet_appl import BaseProxy, get_docking_proxy
 from rdkit import Chem
 from rdkit.Chem import Mol as RDMol
@@ -9,10 +8,11 @@ from torch import Tensor
 
 from rxnflow.base.task import BaseTask
 from rxnflow.utils.misc import get_worker_env
+
+from synthflow.base.env_ctx_cgflow import SynthesisEnvContext3D_cgflow
 from synthflow.base.trainer import RxnFlow3DTrainer
 from synthflow.config import Config
 from synthflow.pocket_conditional.affinity import pmnet_proxy
-from synthflow.pocket_conditional.env import SynthesisEnvContext3D_pocket_conditional
 
 """
 Summary
@@ -47,13 +47,6 @@ class ProxyTask(BaseTask):
         proxy = get_docking_proxy(proxy_model, proxy_type, proxy_dataset, None, self.cfg.device)
         return proxy
 
-    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
-        ctx: SynthesisEnvContext3D_pocket_conditional = get_worker_env("ctx")
-        cond_info = self.temperature_conditional.sample(n)
-        pocket_cond = ctx._tmp_pocket_cond.reshape(1, -1).repeat(n, 1)
-        cond_info["encoding"] = torch.cat([cond_info["encoding"], pocket_cond], dim=1)
-        return cond_info
-
     def save_pose(self, mols: list[RDMol]):
         out_path = self.save_dir / f"oracle{self.oracle_idx}.sdf"
         with Chem.SDWriter(str(out_path)) as w:
@@ -67,18 +60,21 @@ class Proxy_MultiPocket_Task(ProxyTask):
 
     def __init__(self, cfg: Config):
         super().__init__(cfg)
-        self.root_pocket_dir = Path(cfg.task.pocket_conditional.pocket_dir)
-        self.pocket_pdb_to_files: dict[str, list[str]] = {}
+        self.root_protein_dir = Path(cfg.task.pocket_conditional.protein_dir)
+
+        # TODO: add protein db structure
+        self.pdb_to_pocket: dict[str, tuple[float, float, float]] = {}
         with open(cfg.task.pocket_conditional.train_key) as f:
             for ln in f.readlines():
-                filename, pocket_pdb_key = ln.strip().split(",")
-                self.pocket_pdb_to_files.setdefault(pocket_pdb_key, []).append(filename)
-        self.pocket_pdbs: list[str] = list(self.pocket_pdb_to_files.keys())
-        assert set(self.pocket_pdbs) <= self.proxy._cache.keys()
-        random.shuffle(self.pocket_pdbs)
+                pdb, x, y, z = ln.strip().split(",")
+                self.pdb_to_pocket[pdb] = (float(x), float(y), float(z))
+
+        self.pdb_keys: list[str] = sorted(list(self.pdb_to_pocket.keys()))
+        self.pdb_keys = [key for key in self.pdb_keys if key in self.proxy._cache.keys()]
+        random.shuffle(self.pdb_keys)
 
     def compute_rewards(self, mols: list[RDMol]) -> Tensor:
-        print(f"compute reward for {self.pocket_filename}")
+        # print(f"compute reward for {self.pocket_key}")
         rewards = super().compute_rewards(mols)
         return rewards
 
@@ -88,16 +84,27 @@ class Proxy_MultiPocket_Task(ProxyTask):
         return proxy
 
     def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
-        ctx: SynthesisEnvContext3D_pocket_conditional = get_worker_env("ctx")
-        # set next pocket
-        pocket_pdb = self.pocket_pdbs[train_it % len(self.pocket_pdbs)]
-        pocket_filename = random.choice(self.pocket_pdb_to_files[pocket_pdb])
-        ctx.set_pocket(self.root_pocket_dir / pocket_filename)
-        self.pocket_key = pocket_pdb
-        self.pocket_filename = pocket_filename
+        ctx: SynthesisEnvContext3D_cgflow = get_worker_env("ctx")
+
+        # set pocket (up to 100 trials)
+        for index in range(train_it, train_it + 100):
+            pdb_code = self.pdb_keys[index % len(self.pdb_keys)]
+            protein_path = self.root_protein_dir / f"{pdb_code}.pdb"
+            center = self.pdb_to_pocket[pdb_code]
+            try:
+                ctx.set_pocket(protein_path, center)
+            except:
+                print(f"Failed to set pocket for {pdb_code} at {protein_path}. Try next pocket.")
+                continue
+            else:
+                break
+        else:
+            raise ValueError("Fail to set pocket")
+        self.pocket_key = pdb_code
+        self.pocket_filename = protein_path
         # log what pocket is selected for each training iterations
         with open(self.index_path, "a") as w:
-            w.write(f"{self.oracle_idx},{pocket_filename}\n")
+            w.write(f"{self.oracle_idx},{pdb_code}\n")
         return super().sample_conditional_information(n, train_it)
 
 
@@ -112,22 +119,19 @@ class Proxy_MultiPocket_Trainer(RxnFlow3DTrainer):
         base.num_training_steps = 200_000
         base.checkpoint_every = 1_000
 
-        base.model.num_emb = 64
+        base.model.num_emb = 128
 
         # GFN parameters
         base.cond.temperature.sample_dist = "uniform"
         base.cond.temperature.dist_params = [1, 64]
 
         # model training
-        base.algo.train_random_action_prob = 0.1
-        base.algo.num_from_policy = 16
+        base.algo.sampling_tau = 0.0
+        base.algo.train_random_action_prob = 0.2
+        base.algo.num_from_policy = 32
 
-        base.replay.use = True
-        base.replay.num_new_samples = 16
-        base.replay.num_from_replay = 16 * 3
-        base.replay.warmup = 16 * 20
-        base.replay.capacity = 16 * 500
-        base.num_workers_retrosynthesis = 4
+        # it is mandatory to set this to False for multi-pocket training
+        base.replay.use = False
 
         # training learning rate
         base.opt.learning_rate = 1e-4
@@ -139,7 +143,7 @@ class Proxy_MultiPocket_Trainer(RxnFlow3DTrainer):
         ckpt_path = self.cfg.cgflow.ckpt_path
         use_predicted_pose = self.cfg.cgflow.use_predicted_pose
         num_inference_steps = self.cfg.cgflow.num_inference_steps
-        self.ctx = SynthesisEnvContext3D_pocket_conditional(
+        self.ctx = SynthesisEnvContext3D_cgflow(
             self.env,
             self.task.num_cond_dim,
             ckpt_path,

@@ -1,0 +1,22 @@
+python semlaflow/train.py \
+    --data_path semlaflow/saved/data/plinder/smol \
+    --dataset plinder \
+    --t_per_ar_action 0.25 \
+    --max_interp_time 0.5 \
+    --ordering_strategy connected \
+    --decomposition_strategy reaction \
+    --max_action_t 0.75 \
+    --max_num_cuts 3 \
+    --dist_loss_weight 0. \
+    --type_loss_weight 0. \
+    --bond_loss_weight 0. \
+    --charge_loss_weight 0. \
+    --optimal_transport None  \
+    --categorical_strategy auto-regressive \
+    --val_check_epochs 50 \
+    --monitor val-strain \
+    --monitor_mode min \
+    --n_training_mols 1 \
+    --d_message 64 \
+    --d_message_hidden 64 \
+    --c_alpha_only

@@ -9,8 +9,8 @@ command:
   - localopt # group
   - ./logs/exp2-localopt/ # storage
   - ./data/envs/stock/ # env dir
-  - ./data/LIT-PCBA/ # pocket dir
-  - ./weights/plidner_till_end.ckpt # ckpt
+  - ./data/test/LIT-PCBA/ # pocket dir
+  - ../weights/plinder_till_end.ckpt # ckpt
 
 method: grid
 parameters:
@@ -34,4 +34,4 @@ parameters:
   seed:
     values: [0, 1, 2]
   num_inference_steps:
-    value: 50
+    value: 60

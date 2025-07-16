@@ -82,9 +82,9 @@ class TemperatureConditional(Conditional[LogScalar, LogScalar]):
         return {"beta": torch.tensor(beta), "encoding": beta_enc}
 
     def transform(self, cond_info: dict[str, Tensor], logreward: LogScalar) -> LogScalar:
-        assert len(logreward.shape) == len(
-            cond_info["beta"].shape
-        ), f"dangerous shape mismatch: {logreward.shape} vs {cond_info['beta'].shape}"
+        assert len(logreward.shape) == len(cond_info["beta"].shape), (
+            f"dangerous shape mismatch: {logreward.shape} vs {cond_info['beta'].shape}"
+        )
         return LogScalar(logreward * cond_info["beta"])
 
     def encode(self, conditional: Tensor) -> Tensor:

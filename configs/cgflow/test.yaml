@@ -1,0 +1,9 @@
+test_dataset:
+  _yaml_: default/dataset/complex_lmdb.yaml
+  data_path: ./data/experiments/cgflow/plinder/lmdb/test/
+  key_path: ./data/experiments/cgflow/plinder/keys/test.txt
+
+datamodule:
+  _yaml_: default/datamodule/simple_dm.yaml
+  batch_size: 100
+  num_workers: 10

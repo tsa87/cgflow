@@ -26,6 +26,11 @@ class SQLiteLogHook:
         else:
             objs = [""] * len(trajs)
 
+        if hasattr(self.ctx, "traj_to_log_repr"):
+            traj_str = [self.ctx.traj_to_log_repr(t["traj"]) if t["is_valid"] else "" for t in trajs]
+        else:
+            traj_str = [""] * len(trajs)
+
         obj_props = obj_props.reshape((len(obj_props), -1)).data.numpy().tolist()
         rewards = rewards.data.numpy().tolist()
         preferences = cond_info.get("preferences", torch.zeros((len(objs), 0))).data.numpy().tolist()
@@ -33,7 +38,7 @@ class SQLiteLogHook:
         logged_keys = [k for k in sorted(cond_info.keys()) if k not in ["encoding", "preferences", "focus_dir"]]
 
         data = [
-            [objs[i], rewards[i]]
+            [objs[i], rewards[i], traj_str[i]]
             + obj_props[i]
             + preferences[i]
             + focus_dir[i]
@@ -42,7 +47,7 @@ class SQLiteLogHook:
         ]
         if self.data_labels is None:
             self.data_labels = (
-                ["smi", "r"]
+                ["smi", "r", "traj"]
                 + [f"fr_{i}" for i in range(len(obj_props[0]))]
                 + [f"pref_{i}" for i in range(len(preferences[0]))]
                 + [f"focus_{i}" for i in range(len(focus_dir[0]))]
@@ -84,13 +89,13 @@ class SQLiteLog:
         cur.close()
 
     def insert_many(self, rows, column_names):
-        assert all(
-            [isinstance(x, str) or not isinstance(x, Iterable) for x in rows[0]]
-        ), "rows must only contain scalars"
+        assert all([isinstance(x, str) or not isinstance(x, Iterable) for x in rows[0]]), (
+            "rows must only contain scalars"
+        )
         if not self._has_results_table:
             self._make_results_table([type(i) for i in rows[0]], column_names)
         cur = self.db.cursor()
-        cur.executemany(f'insert into results values ({",".join("?"*len(rows[0]))})', rows)  # nosec
+        cur.executemany(f"insert into results values ({','.join('?' * len(rows[0]))})", rows)  # nosec
         cur.close()
         self.db.commit()
 

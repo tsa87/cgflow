@@ -1,0 +1,3 @@
+_registry_: "time_distribution"
+_type_: ConstantTimeDistribution
+time: 0.99 # here we use 0.99 to get the generated times for all atoms.

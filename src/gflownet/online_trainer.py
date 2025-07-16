@@ -1,23 +1,20 @@
 import copy
 import os
 import pathlib
+from typing import Generic
 
 import git
 import torch
 from omegaconf import OmegaConf
 from torch import Tensor
 
-from gflownet.algo.advantage_actor_critic import A2C
-from gflownet.algo.flow_matching import FlowMatching
-from gflownet.algo.soft_q_learning import SoftQLearning
-from gflownet.algo.trajectory_balance import TrajectoryBalance
+from gflownet.algo.trajectory_balance import TrajectoryBalance, TrajectoryBalanceModel
 from gflownet.data.replay_buffer import ReplayBuffer
-from gflownet.models.graph_transformer import GraphTransformerGFN
 
-from .trainer import GFNTrainer
+from .trainer import GFNTaskT, GFNTrainer
 
 
-def model_grad_norm(model):
+def model_grad_norm(model: torch.nn.Module) -> torch.Tensor:
     x = 0
     for i in model.parameters():
         if i.grad is not None:
@@ -25,53 +22,25 @@ def model_grad_norm(model):
     return torch.sqrt(x)
 
 
-class StandardOnlineTrainer(GFNTrainer):
-    def setup_model(self):
-        self.model = GraphTransformerGFN(
-            self.ctx,
-            self.cfg,
-            do_bck=self.cfg.algo.tb.do_parameterize_p_b,
-            num_graph_out=self.cfg.algo.tb.do_predict_n + 1,
-        )
+class StandardOnlineTrainer(GFNTrainer[GFNTaskT], Generic[GFNTaskT]):
+    """A standard online GFlowNet trainer with Trajectory Balance objective."""
 
-    def setup_algo(self):
-        algo = self.cfg.algo.method
-        if algo == "TB":
-            algo = TrajectoryBalance
-        elif algo == "FM":
-            algo = FlowMatching
-        elif algo == "A2C":
-            algo = A2C
-        elif algo == "SQL":
-            algo = SoftQLearning
-        else:
-            raise ValueError(algo)
-        self.algo = algo(self.env, self.ctx, self.cfg)
-
-    def setup_data(self):
-        self.training_data = []
-        self.test_data = []
-
-    def _opt(self, params, lr=None, momentum=None):
-        if lr is None:
-            lr = self.cfg.opt.learning_rate
-        if momentum is None:
-            momentum = self.cfg.opt.momentum
-        if self.cfg.opt.opt == "adam":
-            return torch.optim.Adam(
-                params,
-                lr,
-                (momentum, 0.999),
-                weight_decay=self.cfg.opt.weight_decay,
-                eps=self.cfg.opt.adam_eps,
-            )
-
-        raise NotImplementedError(f"{self.cfg.opt.opt} is not implemented")
+    model: TrajectoryBalanceModel
 
     def setup(self):
         super().setup()
-        self.offline_ratio = 0
+        self.setup_online()
+
+    def setup_algo(self):
+        algo = self.cfg.algo.method
+        assert algo == "TB"
+        self.algo = TrajectoryBalance(self.env, self.ctx, self.cfg)
+
+    def setup_replay_buffer(self):
         self.replay_buffer = ReplayBuffer(self.cfg) if self.cfg.replay.use else None
+
+    def setup_online(self):
+        self.offline_ratio = 0
         self.sampling_hooks.append(AvgRewardHook())
         self.valid_sampling_hooks.append(AvgRewardHook())
 
@@ -115,6 +84,29 @@ class StandardOnlineTrainer(GFNTrainer):
         os.makedirs(self.cfg.log_dir, exist_ok=True)
         with open(pathlib.Path(self.cfg.log_dir) / "config.yaml", "w", encoding="utf8") as f:
             f.write(yaml_cfg)
+
+    def _opt(self, params, lr: float | None = None, momentum: float | None = None):
+        if lr is None:
+            lr = self.cfg.opt.learning_rate
+        if momentum is None:
+            momentum = self.cfg.opt.momentum
+        if self.cfg.opt.opt == "adam":
+            return torch.optim.Adam(
+                params,
+                lr,
+                (momentum, 0.999),
+                weight_decay=self.cfg.opt.weight_decay,
+                eps=self.cfg.opt.eps,
+            )
+        elif self.cfg.opt.opt == "adamw":
+            return torch.optim.AdamW(
+                params,
+                lr,
+                (momentum, 0.999),
+                weight_decay=self.cfg.opt.weight_decay,
+                eps=self.cfg.opt.eps,
+            )
+        raise NotImplementedError(f"{self.cfg.opt.opt} is not implemented")
 
     def step(self, loss: Tensor):
         loss.backward()

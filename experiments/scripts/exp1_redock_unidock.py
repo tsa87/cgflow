@@ -32,6 +32,8 @@ def main():
     config.print_every = 1
     config.seed = seed
 
+    config.algo.action_subsampling.sampling_ratio = 0.01
+
     config.task.docking.protein_path = protein_path
     config.task.docking.ref_ligand_path = ref_ligand_path
     config.task.docking.redocking = True

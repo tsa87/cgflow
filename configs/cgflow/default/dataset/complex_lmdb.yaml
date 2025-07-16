@@ -1,0 +1,6 @@
+_registry_: "dataset"
+_type_: LMDBPocketComplexDataset
+data_path: ???
+key_path: ???
+dataset_size: null
+max_length: 160

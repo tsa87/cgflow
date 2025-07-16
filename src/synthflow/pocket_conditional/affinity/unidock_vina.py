@@ -66,7 +66,8 @@ def docking(
         for i in range(len(rdmols)):
             try:
                 docked_file = out_dir / "savedir" / f"{i}.sdf"
-                docked_rdmol: Chem.Mol = list(Chem.SDMolSupplier(str(docked_file)))[0]
+                docked_rdmol: Chem.Mol = list(
+                    Chem.SDMolSupplier(str(docked_file)))[0]
                 assert docked_rdmol is not None
                 docking_score = float(docked_rdmol.GetProp("docking_score"))
             except Exception:

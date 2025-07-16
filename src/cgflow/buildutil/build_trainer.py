@@ -1,69 +1,73 @@
+from dataclasses import dataclass
+from pathlib import Path
+
 import lightning as L
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.strategies import DDPStrategy
 
-import cgflow.scriptutil as util
+
+@dataclass
+class TrainerConfig:
+    save_dir: str = "./result/"
+    wandb_project: str | None = "cgflow"
+    wandb_group: str | None = None
+    wandb_name: str | None = None
+    epoch: int = 10000
+    log_every_n_steps = 50
+    check_val_every_n_epoch: int = 10
+    val_check_interval: float | None = None
+    checkpoint_epochs: int = 10
+    num_gpus: int = 1
+    monitor: str = "val/rmsd"
+    monitor_mode: str = "min"
+    accumulate_grad_batches: int = 1
+    gradient_clip_val: float = 1.0
+    precision: str | int = "16-mixed"
 
 
-# bfloat16 training produced significantly worse models than full so use default 16-bit instead
-def get_precision(args):
-    return "16-mixed"
+def build_trainer(config: TrainerConfig):
+    epochs: int = config.epoch
+    if config.wandb_project is None:
+        logger = None
+    else:
+        Path(config.save_dir).mkdir(parents=True, exist_ok=True)
+        logger = WandbLogger(
+            name=config.wandb_name,
+            project=config.wandb_project,
+            group=config.wandb_group,
+            log_model=True,
+            save_dir=config.save_dir,
+        )
+        # if config.num_gpus == 1:
+        #     logger.experiment.config.update(config)  # error on multi-gpu
 
-
-def build_trainer(args):
-    assert not args.trial_run
-    epochs = 1 if args.trial_run else args.epochs
-    log_steps = 1
-    # HACK log_steps = 1 if args.trial_run else 50
-
-    assert args.dataset in [
-        "qm9",
-        "geom-drugs",
-        "plinder",
-        "plinder-ligand",
-        "zinc15m",
-        "crossdock",
-    ], f"Unknown dataset {args.dataset}"
-    val_check_epochs = args.val_check_epochs
-
-    project_name = f"{util.PROJECT_PREFIX}-{args.dataset}"
-    precision = get_precision(args)
-
-    print(f"Using precision '{precision}'")
-
-    logger = WandbLogger(project=project_name,
-                         save_dir="wandb",
-                         log_model=True)
-    if args.num_gpus == 1:
-        logger.experiment.config.update(vars(args))  # error on multi-gpu
-
+    # callback
     lr_monitor = LearningRateMonitor(logging_interval="step")
     checkpointing = ModelCheckpoint(
-        every_n_epochs=val_check_epochs,
-        monitor=args.monitor,
-        mode=args.monitor_mode,
+        filename="epoch{epoch}-step{step}-rmsd{val/rmsd:.2f}",
+        every_n_epochs=config.checkpoint_epochs,
+        monitor=config.monitor,
+        mode=config.monitor_mode,
         save_last=True,
+        save_top_k=3,
+        auto_insert_metric_name=False,
     )
-
-    # Overwrite if doing a trial run
-    val_check_epochs = 1 if args.trial_run else val_check_epochs
-    logger = None if args.trial_run else logger
 
     trainer = L.Trainer(
         accelerator="gpu",
-        devices=args.num_gpus,
-        strategy='auto' if args.num_gpus == 1 else DDPStrategy(
-            find_unused_parameters=True),
+        devices=config.num_gpus,
+        strategy="auto" if config.num_gpus == 1 else DDPStrategy(find_unused_parameters=True),
         min_epochs=epochs,
         max_epochs=epochs,
         logger=logger,
-        log_every_n_steps=log_steps,
-        accumulate_grad_batches=args.acc_batches,
-        gradient_clip_val=args.gradient_clip_val,
-        check_val_every_n_epoch=val_check_epochs,
+        log_every_n_steps=config.log_every_n_steps,
+        accumulate_grad_batches=config.accumulate_grad_batches,
+        gradient_clip_val=config.gradient_clip_val,
+        val_check_interval=config.val_check_interval,
+        check_val_every_n_epoch=config.check_val_every_n_epoch,
         callbacks=[lr_monitor, checkpointing],
-        precision=precision,
+        precision=config.precision,
         use_distributed_sampler=False,
     )
     return trainer

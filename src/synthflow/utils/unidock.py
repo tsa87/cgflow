@@ -6,7 +6,6 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import Mol as RDMol
 from unidock_tools.application.unidock_pipeline import UniDock
-from unidock_tools.modules.protein_prep.pdb2pdbqt import pdb2pdbqt
 
 
 def run_etkdg(mol: RDMol, sdf_path: Path | str, seed: int = 1) -> bool:
@@ -34,14 +33,13 @@ def docking(
     protein_path: str | Path,
     center: tuple[float, float, float],
     seed: int = 1,
-    size: float = 20.0,
+    size: float | tuple[float, float, float] = 20.0,
     search_mode: str = "balance",
 ):
+    if isinstance(size, float | int):
+        size = (size, size, size)
+
     protein_path = Path(protein_path)
-    # create pdbqt file
-    protein_pdbqt_path: Path = protein_path.parent / (protein_path.stem + "_unidock.pdbqt")
-    if not protein_pdbqt_path.exists():
-        pdb2pdbqt(protein_path, protein_pdbqt_path)
 
     with tempfile.TemporaryDirectory() as out_dir:
         out_dir = Path(out_dir)
@@ -53,14 +51,14 @@ def docking(
                 sdf_list.append(ligand_file)
         if len(sdf_list) > 0:
             runner = UniDock(
-                protein_pdbqt_path,
+                protein_path,
                 sdf_list,
                 round(center[0], 3),
                 round(center[1], 3),
                 round(center[2], 3),
-                round(size, 3),
-                round(size, 3),
-                round(size, 3),
+                round(size[0], 3),
+                round(size[1], 3),
+                round(size[2], 3),
                 out_dir / "workdir",
             )
             runner.docking(
@@ -74,7 +72,8 @@ def docking(
         for i in range(len(rdmols)):
             try:
                 docked_file = out_dir / "savedir" / f"{i}.sdf"
-                docked_rdmol: Chem.Mol = list(Chem.SDMolSupplier(str(docked_file)))[0]
+                docked_rdmol: Chem.Mol = list(
+                    Chem.SDMolSupplier(str(docked_file)))[0]
                 assert docked_rdmol is not None
                 docking_score = float(docked_rdmol.GetProp("docking_score"))
             except Exception:
@@ -90,10 +89,6 @@ def scoring(
     size: float = 25.0,
 ):
     protein_path = Path(protein_path)
-    # create pdbqt file
-    protein_pdbqt_path: Path = protein_path.parent / (protein_path.name + "qt")
-    if not protein_pdbqt_path.exists():
-        pdb2pdbqt(protein_path, protein_pdbqt_path)
 
     with tempfile.TemporaryDirectory() as out_dir:
         out_dir = Path(out_dir)
@@ -118,7 +113,7 @@ def scoring(
                 sdf_list.append(ligand_file)
         if len(sdf_list) > 0:
             runner = UniDock(
-                protein_pdbqt_path,
+                protein_path,
                 sdf_list,
                 round(center[0], 3),
                 round(center[1], 3),
@@ -137,7 +132,8 @@ def scoring(
         for i in range(len(rdmols)):
             docked_file = str(out_dir / "savedir" / f"{i}.sdf")
             try:
-                docked_rdmol: Chem.Mol = list(Chem.SDMolSupplier(str(docked_file), sanitize=False))[0]
+                docked_rdmol = list(
+                    Chem.SDMolSupplier(str(docked_file), sanitize=False))[0]
                 assert docked_rdmol is not None
                 docking_score = float(docked_rdmol.GetProp("docking_score"))
             except Exception:

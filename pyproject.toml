@@ -8,7 +8,7 @@ authors = [
   { name = "Tony Shen", email = "tony.z.shen@gmail.com" },
   { name = "Seonghwan Seo", email = "shwan0106@gmail.com" },
 ]
-version = "0.0.1"
+version = "0.1.0"
 readme = "README.md"
 classifiers = [
   "Operating System :: OS Independent",
@@ -18,67 +18,68 @@ classifiers = [
 requires-python = ">=3.11,<3.13"
 dependencies = [
   # torch, torch-geometric
-  "torch==2.6.0",
-  "numpy<2.0.0",
+  "torch>=2.5.0",
   "torch-geometric>=2.4.0",
   "torch-scatter>=2.1.2",
   "torch-sparse>=0.6.18",
   "torch-cluster>=1.6.3",
-  # rxnflow
-  "tensorboard",
-  "gitpython",
-  "botorch",
-  # semlaflow training
-  "lightning>=2.2.1",
+  # cgflow training
+  "lightning",
   "torchmetrics",
   "lmdb",
-  "deepspeed",
   # cheminfo&bioinfo
-  "biotite==1.0.1",
+  "rdkit",
   "biopython",
-  "openbabel-wheel==3.1.1.20",
-  "rdkit>=2023.9.4",
-  # "plinder",
+  "openbabel-wheel",
+  "biotite==1.0.1",
   # additional
-  "typing_extensions",                                                                                # is it really required?
+  "gitpython",
   "wandb",
   "tqdm",
-  "py3Dmol",
   "omegaconf",
   "pandas>=2.2.2",
-  "meeko",
-  "vina",
-  "pdb2pqr",
-  "unidock_tools @ git+https://github.com/dptech-corp/Uni-Dock.git@1.1.2#subdirectory=unidock_tools",
-  "AutoDockTools_py3 @ git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3",
-  "pharmaconet @ git+https://github.com/SeonghwanSeo/PharmacoNet.git",
+  "scikit-learn",
   "druglikeness @ git+https://github.com/SeonghwanSeo/drug-likeness.git",
+  "pharmaconet @ git+https://github.com/SeonghwanSeo/PharmacoNet.git",
 ]
 
 [project.optional-dependencies]
+vina = [
+  "meeko",
+  "vina",
+  "pdb2pqr",
+  "AutoDockTools_py3 @ git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3",
+]
+unidock = [
+  "unidock_tools @ git+https://github.com/dptech-corp/Uni-Dock.git@1.1.2#subdirectory=unidock_tools",
+]
+dev = ["pre-commit"]
 extra = [
+  "py3Dmol",
   "matplotlib",
   "jupyter",
   "ipykernel",
   "py3Dmol",
   "posecheck @ git+https://github.com/cch1999/posecheck.git",
-  "prolif==2.0.3",
   "MDAnalysis==2.7.0",
 ]
-
-[tool.black]
-line-length = 120
-target-version = ["py311"]
 
 [tool.ruff]
 target-version = "py311"
 line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "B", "UP", "T203", "I"]
-ignore = ["E501"]
+ignore = ["E501", "E722"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "E402"]
-
-[tool.basedpyright]
-pythonVersion = "3.11"
-typeCheckingMode = "standard"
+[tool.ruff.lint.isort]
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "externals",
+  "first-party",
+  "local-folder",
+]
+[tool.ruff.lint.isort.sections]
+externals = ['gflownet', 'rxnflow']

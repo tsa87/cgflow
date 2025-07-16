@@ -10,13 +10,9 @@ from synthflow.utils import unidock
 def _run_redocking(self: BaseDockingTask, mols: list[Chem.Mol]) -> list[float]:
     # unidock redocking
     try:
-        res = unidock.docking(mols,
-                              self.protein_path,
-                              self.center,
-                              search_mode="balance")
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            "Unidock is not installed. Please install it using conda.")
+        res = unidock.docking(mols, self.protein_path, self.center, search_mode="balance")
+    except ModuleNotFoundError as e:
+        raise ModuleNotFoundError(f"Unidock is not installed. Please install it using conda. {e}") from e
     except Exception:
         return [0.0] * len(mols)
     output_result_path = self.save_dir / f"oracle{self.oracle_idx}_redock.sdf"

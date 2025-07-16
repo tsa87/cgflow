@@ -7,10 +7,10 @@ from torch import Tensor
 
 from rxnflow.base.task import BaseTask
 from rxnflow.utils import chem_metrics
-from rxnflow.utils.misc import get_worker_env
+
+from synthflow.base.env_ctx_cgflow import SynthesisEnvContext3D_cgflow
 from synthflow.base.trainer import RxnFlow3DTrainer
 from synthflow.config import Config
-from synthflow.pocket_conditional.env import SynthesisEnvContext3D_pocket_conditional
 
 
 class PocketConditionalTask(BaseTask):
@@ -50,13 +50,6 @@ class PocketConditionalTask(BaseTask):
     def calculate_affinity(self, mols: list[RDMol]) -> Tensor:
         raise NotImplementedError
 
-    def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
-        ctx: SynthesisEnvContext3D_pocket_conditional = get_worker_env("ctx")
-        cond_info = self.temperature_conditional.sample(n)
-        pocket_cond = ctx._tmp_pocket_cond.reshape(1, -1).repeat(n, 1)
-        cond_info["encoding"] = torch.cat([cond_info["encoding"], pocket_cond], dim=1)
-        return cond_info
-
     def save_pose(self, mols: list[RDMol]):
         out_path = self.save_dir / f"oracle{self.oracle_idx}.sdf"
         with Chem.SDWriter(str(out_path)) as w:
@@ -65,7 +58,7 @@ class PocketConditionalTask(BaseTask):
                 w.write(mol)
 
 
-class PocketConditionalTrainer(RxnFlow3DTrainer):
+class PocketConditionalTrainer(RxnFlow3DTrainer[PocketConditionalTask]):
     task: PocketConditionalTask
 
     def set_default_hps(self, base: Config):
@@ -76,7 +69,10 @@ class PocketConditionalTrainer(RxnFlow3DTrainer):
         base.num_training_steps = 200_000
         base.checkpoint_every = 1_000
 
+        # Model
         base.model.num_emb = 64
+        base.model.graph_transformer.num_layers = 4
+        base.model.num_mlp_layers = 1
 
         # GFN parameters
         base.cond.temperature.sample_dist = "uniform"
@@ -84,12 +80,9 @@ class PocketConditionalTrainer(RxnFlow3DTrainer):
 
         # model training
         base.algo.train_random_action_prob = 0.2
-        base.algo.num_from_policy = 16
-        base.replay.use = True
-        base.replay.capacity = 16 * 500
-        base.replay.warmup = 16 * 20
-        base.replay.num_from_replay = 16 * 3
-        base.num_workers_retrosynthesis = 4
+        base.algo.num_from_policy = 32
+        # it is mandatory to set this to False for multi-pocket training
+        base.replay.use = False
 
         # training learning rate
         base.opt.learning_rate = 1e-4
@@ -101,7 +94,7 @@ class PocketConditionalTrainer(RxnFlow3DTrainer):
         ckpt_path = self.cfg.cgflow.ckpt_path
         use_predicted_pose = self.cfg.cgflow.use_predicted_pose
         num_inference_steps = self.cfg.cgflow.num_inference_steps
-        self.ctx = SynthesisEnvContext3D_pocket_conditional(
+        self.ctx = SynthesisEnvContext3D_cgflow(
             self.env,
             self.task.num_cond_dim,
             ckpt_path,

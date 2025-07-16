@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 
@@ -12,8 +11,9 @@ class ReplayBuffer:
         Replay buffer for storing and sampling arbitrary data (e.g. transitions or trajectories)
         In self.push(), the buffer detaches any torch tensor and sends it to the CPU.
         """
-        self.capacity = cfg.replay.capacity
-        self.warmup = cfg.replay.warmup
+        assert cfg.replay.capacity is not None, "ReplayBuffer capacity must be set in the config"
+        self.capacity: int = cfg.replay.capacity
+        self.warmup: int = cfg.replay.warmup if cfg.replay.warmup is not None else 0
         assert self.warmup <= self.capacity, "ReplayBuffer warmup must be smaller than capacity"
 
         self.buffer: list[tuple] = []

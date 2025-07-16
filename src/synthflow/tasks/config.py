@@ -34,18 +34,25 @@ class DockingTaskConfig:
     ----------
     protein_path: str (path)
         Protein path
+    center: tuple[float, float, float]
+        Pocket center
     ref_ligand_path: str (path)
         Reference ligand path
+    size: tuple[float, float, float]
+        Search box size
     redocking: bool
         if True, run docking; otherwise, run local opt
-    ff_opt: bool
-        if True when redocking is False, run UFF optimization before local opt
+    ff_opt: str
+        When redocking is False, run FF optimization before local opt
     """
 
     protein_path: str = MISSING
-    ref_ligand_path: str = MISSING
+    center: tuple[float, float, float] | None = None
+    size: tuple[float, float, float] = (30, 30, 30)
+    ref_ligand_path: str | None = None
     redocking: bool = True  # TODO: change to docking mode (score-only, local-opt, redock)
-    ff_opt: bool = True
+    ff_opt: str = "mmff"  # 'none', 'uff', 'mmff'
+    exhaustiveness: int = 8  # Exhaustiveness for Vina docking
 
 
 @dataclass
@@ -74,10 +81,9 @@ class PocketConditionalConfig:
         Proxy Key from PharmacoNet
     """
 
-    proxy: tuple[str, str,
-                 str] = ("TacoGFN_Reward", "QVina", "CrossDocked2020")
-    pocket_dir: str = "./data/CrossDocked2020/"
-    train_key: str = "./data/CrossDocked2020/train_keys.csv"
+    proxy: tuple[str, str, str] = ("TacoGFN_Reward", "QVina", "ZINCDock15M")
+    protein_dir: str = "./data/experiments/CrossDocked2020/"
+    train_key: str = "./data/experiments/CrossDocked2020/train_keys.csv"
 
 
 @dataclass
@@ -85,5 +91,4 @@ class TasksConfig:
     moo: MOOTaskConfig = field(default_factory=MOOTaskConfig)
     constraint: ConstraintConfig = field(default_factory=ConstraintConfig)
     docking: DockingTaskConfig = field(default_factory=DockingTaskConfig)
-    pocket_conditional: PocketConditionalConfig = field(
-        default_factory=PocketConditionalConfig)
+    pocket_conditional: PocketConditionalConfig = field(default_factory=PocketConditionalConfig)

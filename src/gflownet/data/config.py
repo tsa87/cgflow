@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 
-from gflownet.utils.misc import StrictDataClass
 
-
-@dataclass
-class ReplayConfig(StrictDataClass):
+@dataclass(slots=True)
+class ReplayConfig:
     """Replay buffer configuration
 
     Attributes

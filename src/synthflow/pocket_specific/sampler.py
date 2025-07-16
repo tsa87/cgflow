@@ -1,22 +1,17 @@
-from cgflow.base.sampler import RxnFlow3DSampler
-from cgflow.pocket_specific.env import SynthesisEnvContext3D_single
+from synthflow.base.sampler import SynthFlowSampler
 
 
-class CGFlowSampler(RxnFlow3DSampler):
-    ctx: SynthesisEnvContext3D_single
-
+class PocketSpecificSampler(SynthFlowSampler):
     def setup_env_context(self):
+        super().setup_env_context()
+
+        # set protein binding site
         protein_path = self.cfg.task.docking.protein_path
+        center = self.cfg.task.docking.center
         ref_ligand_path = self.cfg.task.docking.ref_ligand_path
-        ckpt_path = self.cfg.cgflow.ckpt_path
-        use_predicted_pose = self.cfg.cgflow.use_predicted_pose
-        num_inference_steps = self.cfg.cgflow.num_inference_steps
-        self.ctx = SynthesisEnvContext3D_single(
-            self.env,
-            self.task.num_cond_dim,
-            ckpt_path,
-            protein_path,
-            ref_ligand_path,
-            use_predicted_pose,
-            num_inference_steps,
-        )
+
+        if center is None:
+            assert ref_ligand_path is not None, (
+                "Either `center` or `ref_ligand_path` must be provided to identify the binding site."
+            )
+        self.ctx.set_pocket(protein_path, ref_ligand_path=ref_ligand_path)

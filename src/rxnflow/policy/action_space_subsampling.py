@@ -1,5 +1,6 @@
 import math
 from collections import OrderedDict
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -29,25 +30,68 @@ class ActionSpace:
             return torch.arange((self.num_actions), dtype=torch.long)
 
 
+@dataclass(frozen=True, slots=True)
+class ActionSubspaceForProtocol:
+    protocol: str
+    subsamples: OrderedDict[str, torch.Tensor]  # [protocol, num_actions]
+    weights: torch.Tensor  # [num_total_actions,]
+
+    def items(self):
+        return self.subsamples.items()
+
+    def values(self):
+        return self.subsamples.values()
+
+    def keys(self):
+        return self.subsamples.keys()
+
+    @property
+    def num_clusters(self) -> int:
+        return len(self.subsamples)
+
+    @property
+    def num_actions(self) -> int:
+        return self.weights.shape[0]
+
+
+@dataclass(frozen=True, slots=True)
+class ActionSubspace:
+    _subspaces: OrderedDict[str, ActionSubspaceForProtocol]
+
+    def __getitem__(self, protocol: str | int) -> ActionSubspaceForProtocol:
+        if isinstance(protocol, int):
+            protocol = list(self._subspaces.keys())[protocol]
+        return self._subspaces[protocol]
+
+    def items(self):
+        return self._subspaces.items()
+
+    def keys(self):
+        return self._subspaces.keys()
+
+    def values(self):
+        return self._subspaces.values()
+
+
 class SubsamplingPolicy:
     def __init__(self, env: SynthesisEnv, cfg: Config):
         self.global_cfg = cfg
         self.cfg = cfg.algo.action_subsampling
-
-        sr = self.cfg.sampling_ratio
-        nmin = int(self.cfg.min_sampling)
+        self.protocols = env.protocols
 
         self.block_spaces: dict[str, ActionSpace] = {}
         self.num_blocks: dict[str, int] = {}
 
-        def is_linker(t: str):
-            return "-" in t
-
         # n-total-linker-blocks = O(n-brick-types * n-total-brick-blocks)
         # therefore, we use lower sampling ratio for linkers
+        is_linker = lambda t: "-" in t  # noqa
         num_brick_types = sum(not is_linker(t) for t in env.blocks.keys())
         num_linker_types = sum(is_linker(t) for t in env.blocks.keys())
         linker_coeff = num_linker_types / num_brick_types
+
+        # sampling ratio
+        sr = self.cfg.sampling_ratio
+        nmin = int(self.cfg.min_sampling)
 
         for block_type, blocks in env.blocks.items():
             if is_linker(block_type):
@@ -57,9 +101,9 @@ class SubsamplingPolicy:
             self.block_spaces[block_type] = ActionSpace(len(blocks), sampling_ratio, nmin)
 
         dev = get_worker_device()
-        self.protocol_weights = {}
+        self.protocol_weights: dict[str, torch.Tensor] = {}
         for protocol in env.protocols:
-            weight_list = []
+            weight_list: list[float] = []
             for block_type in protocol.block_types:
                 # importance weight
                 space = self.block_spaces[block_type]
@@ -68,11 +112,20 @@ class SubsamplingPolicy:
             weights = torch.tensor(weight_list, dtype=torch.float32, device=dev)
             self.protocol_weights[protocol.name] = weights
 
-    def sampling(self, protocol: Protocol) -> tuple[OrderedDict[str, torch.Tensor], torch.Tensor]:
+    def sample(self) -> ActionSubspace:
+        subspace: OrderedDict[str, ActionSubspaceForProtocol] = OrderedDict()
+        for protocol in self.protocols:
+            if protocol.action not in [RxnActionType.FirstBlock, RxnActionType.BiRxn]:
+                continue
+            subspace[protocol.name] = self.sample_protocol(protocol)
+        return ActionSubspace(subspace)
+
+    def sample_protocol(self, protocol: Protocol) -> ActionSubspaceForProtocol:
         assert protocol.action in [RxnActionType.FirstBlock, RxnActionType.BiRxn]
         subsample: OrderedDict[str, torch.Tensor] = OrderedDict()
         for block_type in protocol.block_types:
             # subsampling
-            space = self.block_spaces[block_type]
-            subsample[block_type] = space.sampling()
-        return subsample, self.protocol_weights[protocol.name]
+            action_space = self.block_spaces[block_type]
+            subsample[block_type] = action_space.sampling()
+        weights = self.protocol_weights[protocol.name]
+        return ActionSubspaceForProtocol(protocol.name, subsample, weights)

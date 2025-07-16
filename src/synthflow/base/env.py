@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 from rdkit import Chem
 
@@ -22,19 +24,20 @@ class SynthesisEnv3D(SynthesisEnv):
         state_info["updated"] = True
         if action.action is RxnActionType.FirstBlock:
             # initialize state
-            g = MolGraph(action.block, **state_info)
-            g.mol.AddConformer(Chem.Conformer(g.mol.GetNumAtoms()))
+            gp = MolGraph(action.block, **state_info)
+            gp.mol.AddConformer(Chem.Conformer(gp.mol.GetNumAtoms()))
 
         elif action.action is RxnActionType.BiRxn:
             protocol = self.protocol_dict[action.protocol]
             ps = protocol.rxn_forward.forward(g.mol, Chem.MolFromSmiles(action.block), strict=True)
             assert len(ps) == 1, "reaction is Fail"
             refined_obj = self.get_refined_obj(ps[0][0])
-            g = MolGraph(refined_obj, **state_info)
+            gp = MolGraph(refined_obj, **state_info)
         else:
             # In our setup, Stop and UniRxn is invalid.
             raise ValueError(action.action)
-        return g
+        gp.clear_cache()  # Invalidate cached properties since we've modified the graph
+        return gp
 
     def get_refined_obj(self, obj: Chem.Mol) -> Chem.Mol:
         """get refined molecule while retaining atomic coordinates and states"""
@@ -63,21 +66,29 @@ class SynthesisEnv3D(SynthesisEnv):
         return new_obj
 
 
-class SynthesisEnvContext3D(SynthesisEnvContext):
+class SynthesisEnvContext3D(SynthesisEnvContext, ABC):
     """This context specifies how to create molecules by applying reaction templates."""
 
     env: SynthesisEnv3D
 
-    def set_binding_pose_batch(self, gs: list[MolGraph], traj_idx: int, is_last_step: bool, **kwargs) -> None:
-        raise NotImplementedError
+    @abstractmethod
+    def initialize(self):
+        """initialize the environment context.
+        this method is called before binding pose prediction starts."""
+
+    @abstractmethod
+    def set_binding_pose_batch(
+        self, graphs: list[MolGraph], traj_idx: int, is_last_step: bool = False, **kwargs
+    ) -> None:
+        """batch-wise pose prediction"""
 
     def setup_graph(self, g: MolGraph):
         if not g.is_setup:
             obj = g.mol
             if g.mol.GetNumAtoms() > 0:
-                docked_pos = np.array(obj.GetConformer().GetPositions(), dtype=np.float32)
+                pose = np.array(obj.GetConformer().GetPositions(), dtype=np.float32)
             else:
-                docked_pos = np.empty((0, 3), dtype=np.float32)
+                pose = np.empty((0, 3), dtype=np.float32)
             for a in obj.GetAtoms():
                 attrs = {
                     "atomic_number": a.GetAtomicNum(),
@@ -90,7 +101,7 @@ class SynthesisEnvContext3D(SynthesisEnvContext):
                 g.add_node(
                     aid,
                     v=a.GetSymbol(),
-                    pos=docked_pos[aid],
+                    pos=pose[aid],
                     **{attr: val for attr, val in attrs.items()},
                 )
             for b in obj.GetBonds():

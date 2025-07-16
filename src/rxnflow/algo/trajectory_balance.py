@@ -1,8 +1,7 @@
 from torch import Tensor
 
-from gflownet.algo.config import TBVariant
+from gflownet.algo.trajectory_balance import TrajectoryBalance
 from rxnflow.algo.synthetic_path_sampling import SyntheticPathSampler
-from rxnflow.base.gflownet.trajectory_balance import CustomTB
 from rxnflow.config import Config
 from rxnflow.envs import SynthesisEnv, SynthesisEnvContext
 from rxnflow.models.gfn import RxnFlow
@@ -10,17 +9,13 @@ from rxnflow.policy import SubsamplingPolicy
 from rxnflow.utils.misc import set_worker_env
 
 
-class SynthesisTB(CustomTB):
+class SynthesisTB(TrajectoryBalance):
     env: SynthesisEnv
     ctx: SynthesisEnvContext
     global_cfg: Config
     graph_sampler: SyntheticPathSampler
 
     def __init__(self, env: SynthesisEnv, ctx: SynthesisEnvContext, cfg: Config):
-        assert cfg.algo.tb.variant == TBVariant.TB
-        assert cfg.algo.tb.do_parameterize_p_b is False
-        assert cfg.algo.tb.do_correct_idempotent is False
-
         self.action_subsampler: SubsamplingPolicy = SubsamplingPolicy(env, cfg)
         self.importance_temp = cfg.algo.action_subsampling.importance_temp
         set_worker_env("action_subsampler", self.action_subsampler)
@@ -32,10 +27,9 @@ class SynthesisTB(CustomTB):
             self.env,
             self.action_subsampler,
             max_len=self.max_len,
+            max_nodes=self.max_nodes,
             importance_temp=self.importance_temp,
             sample_temp=self.sample_temp,
-            correct_idempotent=self.cfg.do_correct_idempotent,
-            pad_with_terminal_state=self.cfg.do_parameterize_p_b,
             num_workers=self.global_cfg.num_workers_retrosynthesis,
         )
 

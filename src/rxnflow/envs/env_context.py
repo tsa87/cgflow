@@ -9,10 +9,9 @@ from rdkit.Chem import Mol as RDMol
 from torch import Tensor
 
 from gflownet.envs.graph_building_env import ActionIndex, GraphBuildingEnvContext
-from rxnflow.envs.action import Protocol
+from rxnflow.utils.featurization import BLOCK_FP_DIM, BLOCK_PROPERTY_DIM
 
-from .action import RxnAction, RxnActionType
-from .building_block import BLOCK_FP_DIM, BLOCK_PROPERTY_DIM
+from .action import Protocol, RxnAction, RxnActionType
 from .env import MolGraph, SynthesisEnv
 
 DEFAULT_ATOMS = ["*", "B", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I"]
@@ -51,7 +50,8 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
         self.block_type_to_idx: dict[str, int] = {block_type: i for i, block_type in enumerate(self.block_types)}
 
         # NOTE: Setup Building Block Datas
-        self.block_features: dict[str, tuple[Tensor, Tensor]] = env.block_features
+        block_feature_path = env.env_dir / "bb_feature.pt"
+        self.block_features: dict[str, tuple[Tensor, Tensor]] = torch.load(block_feature_path, weights_only=False)
         self.block_fp_dim: int = BLOCK_FP_DIM
         self.block_prop_dim: int = BLOCK_PROPERTY_DIM
 
@@ -154,7 +154,8 @@ class SynthesisEnvContext(GraphBuildingEnvContext):
 
     def graph_to_Data(self, g: MolGraph) -> gd.Data:
         """Convert a networkx Graph to a torch geometric Data instance"""
-        return gd.Data(**self._graph_to_data_dict(g))
+        g = gd.Data(**self._graph_to_data_dict(g))
+        return g
 
     def _graph_to_data_dict(self, g: MolGraph) -> dict[str, Tensor]:
         """Convert a networkx Graph to a torch tensors"""

@@ -92,8 +92,8 @@ class MPObjectProxy:
             memory, but increases load on CPU. It is recommended to activate this flag if
             encountering "Too many open files"-type errors.
         """
-        self.in_queues = [mp.Queue() for i in range(num_workers + 1)]  # type: ignore
-        self.out_queues = [mp.Queue() for i in range(num_workers + 1)]  # type: ignore
+        self.in_queues = [mp.Queue() for _ in range(num_workers + 1)]  # type: ignore
+        self.out_queues = [mp.Queue() for _ in range(num_workers + 1)]  # type: ignore
         self.pickle_messages = pickle_messages
         self.placeholder = MPObjectPlaceholder(self.in_queues, self.out_queues, pickle_messages)
         self.obj = obj
@@ -147,7 +147,7 @@ class MPObjectProxy:
                         pickle.dumps(e)
                     except Exception:
                         result = RuntimeError("Exception raised in MPModelProxy, but it cannot be pickled.\n" + exc_str)
-                if isinstance(result, (list, tuple)):
+                if isinstance(result, list | tuple):
                     msg = [self.to_cpu(i) for i in result]
                 elif isinstance(result, dict):
                     msg = {k: self.to_cpu(i) for k, i in result.items()}

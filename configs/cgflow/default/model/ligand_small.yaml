@@ -1,0 +1,13 @@
+_registry_: "model"
+_type_: LigandDecoderV3
+d_equi: 64
+d_inv: 256
+d_edge: 64
+n_layers: 8
+n_attn_heads: 64 # n heads = 4
+d_message: 64
+d_message_ff: 128
+d_pocket_inv: ???
+d_pocket_equi: ???
+time_cond_dim: 3 # NOTE: for CGFlow (time;rel time; gen time)
+self_cond: True

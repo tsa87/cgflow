@@ -23,7 +23,7 @@ class MOOTaskConfig:
     n_valid: int = 15
     n_valid_repeats: int = 128
     log_topk: bool = False
-    online_pareto_front: bool = True
+    online_pareto_front: bool = False
 
 
 @dataclass

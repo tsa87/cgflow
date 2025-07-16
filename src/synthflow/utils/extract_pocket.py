@@ -1,12 +1,18 @@
 """From https://github.com/SeonghwanSeo/PharmacoNet"""
 
+import warnings
 from pathlib import Path
 
 import numpy as np
 from Bio.PDB import PDBIO, PDBParser
+from Bio.PDB.PDBExceptions import PDBConstructionWarning
 from Bio.PDB.PDBIO import Select
 from numpy.typing import ArrayLike
 from rdkit import Chem
+
+# Suppress the specific warning
+warnings.filterwarnings("ignore", category=PDBConstructionWarning)
+
 
 # fmt: off
 AMINO_ACID = [
@@ -90,8 +96,8 @@ def extract_pocket_from_center(
     cutoff: float = 15.0,
     force_pocket_extract: bool = False,
 ) -> Path:
-    protein_path = Path(protein_path)
     if out_pocket_path is None:
+        protein_path = Path(protein_path)
         if center is not None:
             name = "pocket_" + protein_path.stem + "_" + f"{center}" + f"_{cutoff}A.pdb"
             out_pocket_path = protein_path.parent / name

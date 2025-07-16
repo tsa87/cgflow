@@ -4,7 +4,7 @@ import sys
 import wandb
 
 from synthflow.config import Config, init_empty
-from synthflow.tasks.unidock_vina import UniDockVina_Trainer
+from synthflow.tasks.autodock_vina import AutoDockVina_Trainer
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
 
     config.task.docking.protein_path = protein_path
     config.task.docking.ref_ligand_path = ref_ligand_path
-    config.task.docking.redocking = True
+    config.task.docking.redocking = False
 
     config.cgflow.ckpt_path = ckpt_path
     config.cgflow.num_inference_steps = num_inference_steps
@@ -46,7 +46,7 @@ def main():
     config.log_dir = os.path.join(storage, group, target, f"fm-{num_inference_steps}", f"seed-{seed}")
 
     # NOTE: Run
-    trainer = UniDockVina_Trainer(config)
+    trainer = AutoDockVina_Trainer(config)
     trainer.run()
     trainer.terminate()
 

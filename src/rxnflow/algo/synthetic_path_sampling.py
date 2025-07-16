@@ -25,10 +25,9 @@ class SyntheticPathSampler(GraphSampler):
         env: SynthesisEnv,
         action_subsampler: SubsamplingPolicy,
         max_len: int = 4,
+        max_nodes: int = 40,
         importance_temp: float = 1.0,
         sample_temp: float = 1.0,
-        correct_idempotent: bool = False,
-        pad_with_terminal_state: bool = False,
         num_workers: int = 4,
     ):
         """
@@ -44,14 +43,11 @@ class SyntheticPathSampler(GraphSampler):
             [Experimental] Temperature when importance weighting
         sample_temp: float
             [Experimental] Softmax temperature used when sampling
-        correct_idempotent: bool
-            [Experimental] Correct for idempotent actions when counting
-        pad_with_terminal_state: bool
-            [Experimental] If true pads trajectories with a terminal
         """
         self.ctx: SynthesisEnvContext = ctx
         self.env: SynthesisEnv = env
-        self.max_len = max_len
+        self.max_len: int = max_len
+        self.max_nodes: int = max_nodes
 
         self.action_subsampler: SubsamplingPolicy = action_subsampler
         self.retro_analyzer = MultiRetroSyntheticAnalyzer(self.env.retro_analyzer, num_workers)
@@ -59,8 +55,6 @@ class SyntheticPathSampler(GraphSampler):
         # Experimental flags
         self.importance_temp = importance_temp
         self.sample_temp = sample_temp
-        self.correct_idempotent = correct_idempotent
-        self.pad_with_terminal_state = pad_with_terminal_state
 
     def terminate(self):
         self.retro_analyzer.terminate()
@@ -92,8 +86,8 @@ class SyntheticPathSampler(GraphSampler):
             rng = get_worker_rng()
             is_random = torch.tensor(rng.uniform(size=len(torch_graphs)) < random_action_prob, device=dev)
             new_logits = []
-            for logit, subsample in zip(sample_cat.raw_logits, sample_cat.subsamples, strict=True):
-                num_clusters = len(subsample)
+            for logit, subsample in zip(sample_cat.raw_logits, sample_cat.action_subspace.values(), strict=True):
+                num_clusters = subsample.num_clusters
                 ofs = 0
                 for use_block_idcs in subsample.values():
                     num_actions = len(use_block_idcs)
@@ -191,6 +185,7 @@ class SyntheticPathSampler(GraphSampler):
                 try:
                     graphs[i] = g = self.env.step(graphs[i], reaction_actions[j])
                     assert g.mol is not None
+                    assert g.mol.GetNumHeavyAtoms() < self.max_nodes
                 except AssertionError:
                     done[i] = True
                     data[i]["is_valid"] = False

@@ -1,49 +1,13 @@
-# gflownet
-bengio2021flow_proxy.pkl.gz
-
-# rxnflow
-logs/
-experiments/data/building_blocks/*
-experiments/data/envs/*
-experiments/data/stock/*
-experiments/data/experiments/*
-experiments/data/complex/*
-experiments/analysis/
-experiments/LIT-PCBA/*
-experiments/CrossDocked2020/*
-unidock_2025*
-experiments/data/CrossDocked2020/
-experiments/data/LIT-PCBA/
-
-# semlaflow
-.gvp_cache/
-docking_pipeline/
-experiments/data/LIT-PCBA/*/pocket*.pdb
-experiments/data/LIT-PCBA/*/*.pdbqt
-**/weights/*.ckpt
-tony/v0/notebooks/
-tony/v1/temp/
 result/
-evaluation_results/
-experimental/tony/v1/notebooks/temp/*
-
-# pharmaconet
-PharmacoNet/
-# running
+data/building_blocks/*
+data/envs/*
+data/experiments/*
+lightning_logs/
 weights/
-weights.tar
-experiments/data/test/
+*.pdbqt
 
 # package
 build/
-
-# Log files
-wandb/
-molproc_logs/
-lightning_logs/
-notebooks/lightning_logs/
-nohup.out
-*job*.out
 
 # Slurm submission scripts and logs
 subslurm/
@@ -51,38 +15,153 @@ slurmlog/
 slurm-*
 job.sh
 
-*.profile
-*.egg-info
-uv.lock
-
 # Editors
 .vscode/
 typings/
 
-# Jupyter notebook checkpoints
-notebooks/.ipynb_checkpoints/
-
-# Python cache files
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*/__pycache__/
-**/__pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
-*.zip
-*.tar.gz
+# C extensions
+*.so
 
-# experimental code
-src/app
-weights
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
 
-# Versions
-=0.6.18
-=1.6.3
-=2.1.2
-=2.4.0
-experiments/=0.6.18
-experiments/=1.6.3
-experiments/=12
-experiments/=2.1.2
-experiments/=2.4.0
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Experimental files files
+=*
+*.out
+*.profile
+evaluation_results/*
+experiments/data/*
+experiments/evals/posecheck/*
+experiments/evals/sampling_efficency/*
+experiments/logs/*
+experiments/wandb/*
+logs/*
+wandb/*
+src/app/*
+data/*.sdf
+data/*.zip
+docking_pipeline/*

@@ -19,7 +19,7 @@ $$$$
 """
 
 
-def run_gnina_local_opt(ligand_path: str, protein_pdbqt_path: str, out_pdbqt_path: str = None):
+def run_gnina_local_opt(ligand_path: str, protein_pdbqt_path: str, out_pdbqt_path: str | None = None):
     """
     Run GNINA local optimization with a simple command.
 
@@ -36,7 +36,7 @@ def run_gnina_local_opt(ligand_path: str, protein_pdbqt_path: str, out_pdbqt_pat
     if out_pdbqt_path:
         cmd.extend(["--out", out_pdbqt_path])
 
-    res = subprocess.run(
+    res = subprocess.run(  # noqa
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -78,7 +78,7 @@ def local_opt(
             mols = list(pybel.readfile("sdf", ligand_path))
 
             # Process each molecule with its corresponding score
-            for i, (pbmol, affinity_line) in enumerate(zip(mols, affinity_lines, strict=False)):
+            for pbmol, affinity_line in zip(mols, affinity_lines, strict=False):
                 try:
                     # Parse score
                     parts = affinity_line.split()
@@ -118,7 +118,7 @@ def run_gnina_docking(
     size: float | tuple[float, float, float] = 20.0,
     exhaustiveness: int = 8,
     cnn_scoring: str = "rescore",
-    cnn_model: str = None,
+    cnn_model: str | None = None,
     num_modes: int = 9,
 ):
     """
@@ -136,7 +136,7 @@ def run_gnina_docking(
         num_modes: Maximum number of binding modes to generate
     """
     # If size is a single value, expand it to a tuple
-    if isinstance(size, (int, float)):
+    if isinstance(size, int | float):
         size = (float(size), float(size), float(size))
 
     cmd = [
@@ -171,7 +171,7 @@ def run_gnina_docking(
     if cnn_model:
         cmd.extend(["--cnn", cnn_model])
 
-    res = subprocess.run(
+    res = subprocess.run(  # noqa
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -188,7 +188,7 @@ def docking(
     size: float | tuple[float, float, float] = 20.0,
     exhaustiveness: int = 8,
     cnn_scoring: str = "rescore",
-    cnn_model: str = None,
+    cnn_model: str | None = None,
     num_modes: int = 9,
     num_workers: int = 1,
 ) -> list[float]:

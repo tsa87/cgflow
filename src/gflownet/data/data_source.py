@@ -281,9 +281,9 @@ class DataSource(IterableDataset):
     def relabel_in_hindsight(self, trajs):
         if self.cfg.replay.hindsight_ratio == 0:
             return
-        assert hasattr(
-            self.task, "relabel_condinfo_and_logrewards"
-        ), "Hindsight requires the task to implement relabel_condinfo_and_logrewards"
+        assert hasattr(self.task, "relabel_condinfo_and_logrewards"), (
+            "Hindsight requires the task to implement relabel_condinfo_and_logrewards"
+        )
         # samples indexes of trajectories without repeats
         hindsight_idxs = torch.randperm(len(trajs))[: int(len(trajs) * self.cfg.replay.hindsight_ratio)]
         log_rewards = torch.stack([t["log_reward"] for t in trajs])

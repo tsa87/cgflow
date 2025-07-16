@@ -39,9 +39,9 @@ class Reaction:
 
     def forward(self, *reactants: RDMol, strict: bool) -> list[tuple[RDMol, ...]]:
         """Perform in-silico reactions"""
-        assert (
-            len(reactants) == self.num_reactants
-        ), f"number of inputs should be same to the number of reactants ({len(reactants)} vs {self.num_reactants})"
+        assert len(reactants) == self.num_reactants, (
+            f"number of inputs should be same to the number of reactants ({len(reactants)} vs {self.num_reactants})"
+        )
         ps: list[list[RDMol]] = self._rxn.RunReactants(reactants, 5)
 
         refine_ps: list[tuple[RDMol, ...]] = []
@@ -73,9 +73,9 @@ class Reaction:
 
     def forward_smi(self, *reactants: RDMol, strict: bool = False) -> list[tuple[str, ...]]:
         """Perform in-silico reactions"""
-        assert (
-            len(reactants) == self.num_reactants
-        ), f"number of inputs should be same to the number of reactants ({len(reactants)} vs {self.num_reactants})"
+        assert len(reactants) == self.num_reactants, (
+            f"number of inputs should be same to the number of reactants ({len(reactants)} vs {self.num_reactants})"
+        )
         assert len(reactants) == self.num_reactants
         ps: list[list[RDMol]] = self._rxn.RunReactants(reactants, 5)
 

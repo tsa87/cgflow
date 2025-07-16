@@ -22,7 +22,7 @@ if __name__ == "__main__":
     config.cgflow.num_inference_steps = 50
 
     config.task.pocket_conditional.proxy = ("TacoGFN_Reward", "QVina", "ZINCDock15M")
-    config.task.pocket_conditional.pocket_dir = "./data/experiments/CrossDocked2020/crossdocked_pocket10/"
+    config.task.pocket_conditional.protein_dir = "./data/experiments/CrossDocked2020/crossdocked_pocket10/"
     config.task.pocket_conditional.train_key = "./data/experiments/CrossDocked2020/train_keys.csv"
 
     trainer = Proxy_MultiPocket_Trainer(config)

@@ -7,11 +7,10 @@ from gflownet.data.config import ReplayConfig
 from gflownet.models.config import ModelConfig
 from gflownet.tasks.config import TasksConfig
 from gflownet.utils.config import ConditionalsConfig
-from gflownet.utils.misc import StrictDataClass
 
 
-@dataclass
-class OptimizerConfig(StrictDataClass):
+@dataclass(slots=True)
+class OptimizerConfig:
     """Generic configuration for optimizers
 
     Attributes
@@ -36,16 +35,16 @@ class OptimizerConfig(StrictDataClass):
 
     opt: str = "adam"
     learning_rate: float = 1e-4
-    lr_decay: float = 20_000
-    weight_decay: float = 1e-8
+    weight_decay: float = 1e-6
+    eps: float = 1e-8
     momentum: float = 0.9
+    lr_decay: float = 20_000
     clip_grad_type: str = "norm"
     clip_grad_param: float = 10.0
-    adam_eps: float = 1e-8
 
 
-@dataclass
-class Config(StrictDataClass):
+@dataclass(slots=True)
+class Config:
     """Base configuration for training
 
     Attributes

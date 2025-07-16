@@ -4,30 +4,32 @@ import os
 import pathlib
 import shutil
 import time
-from collections.abc import Callable
-from typing import Any, Protocol
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
+from typing import Any, Generic, Protocol, TypeVar
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.utils.tensorboard
 import torch_geometric.data as gd
 import wandb
 from omegaconf import OmegaConf
 from rdkit import RDLogger
 from torch import Tensor
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from gflownet import GFNAlgorithm, GFNTask
 from gflownet.data.data_source import DataSource
 from gflownet.data.replay_buffer import ReplayBuffer
 from gflownet.envs.graph_building_env import GraphActionCategorical, GraphBuildingEnv, GraphBuildingEnvContext
-from gflownet.envs.seq_building_env import SeqBatch
 from gflownet.utils.misc import create_logger, set_main_process_device, set_worker_rng_seed
 from gflownet.utils.multiprocessing_proxy import mp_object_wrapper
 from gflownet.utils.sqlite_log import SQLiteLogHook
 
 from .config import Config
+
+AnyT = TypeVar("AnyT")
+GFNTaskT = TypeVar("GFNTaskT", bound=GFNTask)
 
 
 class Closable(Protocol):
@@ -35,7 +37,17 @@ class Closable(Protocol):
         pass
 
 
-class GFNTrainer:
+class GFNTrainer(ABC, Generic[GFNTaskT]):
+    model: nn.Module
+    sampling_model: nn.Module
+    env: GraphBuildingEnv
+    ctx: GraphBuildingEnvContext
+    task: GFNTaskT
+    algo: GFNAlgorithm
+    replay_buffer: ReplayBuffer | None
+    training_data: Sequence
+    test_data: Sequence
+
     def __init__(self, config: Config, print_config=True):
         """A GFlowNet trainer. Contains the main training loop in `run` and should be subclassed.
 
@@ -47,17 +59,8 @@ class GFNTrainer:
         self.print_config = print_config
         self.to_terminate: list[Closable] = []
         # self.setup should at least set these up:
-        self.training_data: Dataset
-        self.test_data: Dataset
-        self.model: nn.Module
         # `sampling_model` is used by the data workers to sample new objects from the model. Can be
         # the same as `model`.
-        self.sampling_model: nn.Module
-        self.replay_buffer: ReplayBuffer | None
-        self.env: GraphBuildingEnv
-        self.ctx: GraphBuildingEnvContext
-        self.task: GFNTask
-        self.algo: GFNAlgorithm
 
         # There are three sources of config values
         #   - The default values specified in individual config classes
@@ -65,7 +68,7 @@ class GFNTrainer:
         #   - The values passed in the constructor, typically what is called by the user
         # The final config is obtained by merging the three sources with the following precedence:
         #   config classes < default_hps < constructor (i.e. the constructor overrides the default_hps, and so on)
-        self.default_cfg: Config = Config()
+        self.default_cfg: Config = self.get_default_cfg()
         self.set_default_hps(self.default_cfg)
         assert isinstance(self.default_cfg, Config) and isinstance(
             config, Config
@@ -84,26 +87,33 @@ class GFNTrainer:
 
         self.setup()
 
-    def set_default_hps(self, base: Config):
-        raise NotImplementedError()
+    def get_default_cfg(self):
+        return Config()
 
-    def setup_env_context(self):
-        raise NotImplementedError()
-
-    def setup_task(self):
-        raise NotImplementedError()
-
-    def setup_model(self):
-        raise NotImplementedError()
-
-    def setup_algo(self):
-        raise NotImplementedError()
-
-    def setup_data(self):
+    def set_default_hps(self, base: Config):  # noqa
         pass
 
-    def step(self, loss: Tensor):
-        raise NotImplementedError()
+    @abstractmethod
+    def setup_env(self): ...
+
+    @abstractmethod
+    def setup_env_context(self): ...
+
+    @abstractmethod
+    def setup_task(self): ...
+
+    @abstractmethod
+    def setup_model(self): ...
+
+    @abstractmethod
+    def setup_algo(self): ...
+
+    @abstractmethod
+    def setup_replay_buffer(self): ...
+
+    def setup_data(self):  # noqa
+        self.training_data = []
+        self.test_data = []
 
     def setup(self):
         if os.path.exists(self.cfg.log_dir):
@@ -119,25 +129,30 @@ class GFNTrainer:
         torch.manual_seed(self.cfg.seed + 42)
         torch.cuda.manual_seed(self.cfg.seed + 42)
         set_worker_rng_seed(self.cfg.seed)
-        self.env = GraphBuildingEnv()
+
+        self.setup_env()
         self.setup_data()
         self.setup_task()
         self.setup_env_context()
         self.setup_algo()
         self.setup_model()
+        self.setup_replay_buffer()
 
-    def _wrap_for_mp(self, obj):
+    @abstractmethod
+    def step(self, loss: Tensor): ...
+
+    def _wrap_for_mp(self, obj: AnyT) -> AnyT:
         """Wraps an object in a placeholder whose reference can be sent to a
         data worker process (only if the number of workers is non-zero)."""
         if self.cfg.num_workers > 0 and obj is not None:
             wrapper = mp_object_wrapper(
                 obj,
                 self.cfg.num_workers,
-                cast_types=(gd.Batch, GraphActionCategorical, SeqBatch),
+                cast_types=(gd.Batch, GraphActionCategorical),
                 pickle_messages=self.cfg.pickle_mp_messages,
             )
             self.to_terminate.append(wrapper.terminate)
-            return wrapper.placeholder
+            return wrapper.placeholder  # noqa
         else:
             return obj
 
@@ -152,6 +167,9 @@ class GFNTrainer:
             persistent_workers=self.cfg.num_workers > 0,
             prefetch_factor=1 if self.cfg.num_workers else None,
         )
+
+    def create_data_source(self, replay_buffer: ReplayBuffer | None = None, is_algo_eval: bool = False):
+        return DataSource(self.cfg, self.ctx, self.algo, self.task, replay_buffer, is_algo_eval)
 
     def build_training_data_loader(self) -> DataLoader:
         # Since the model may be used by a worker in a different process, we need to wrap it.
@@ -169,7 +187,7 @@ class GFNTrainer:
         n_new_replay_samples = self.cfg.replay.num_new_samples or n_drawn if self.cfg.replay.use else None
         n_from_dataset = self.cfg.algo.num_from_dataset
 
-        src = DataSource(self.cfg, self.ctx, self.algo, self.task, replay_buffer=replay_buffer)
+        src = self.create_data_source(replay_buffer=replay_buffer)
         if n_from_dataset:
             src.do_sample_dataset(self.training_data, n_from_dataset, backwards_model=model)
         if n_drawn:
@@ -189,7 +207,7 @@ class GFNTrainer:
         n_drawn = self.cfg.algo.valid_num_from_policy
         n_from_dataset = self.cfg.algo.valid_num_from_dataset
 
-        src = DataSource(self.cfg, self.ctx, self.algo, self.task, is_algo_eval=True)
+        src = self.create_data_source(is_algo_eval=True)
         if n_from_dataset:
             src.do_dataset_in_order(self.test_data, n_from_dataset, backwards_model=model)
         if n_drawn:
@@ -207,7 +225,7 @@ class GFNTrainer:
         model = self._wrap_for_mp(self.model)
 
         n_drawn = self.cfg.algo.num_from_policy
-        src = DataSource(self.cfg, self.ctx, self.algo, self.task, is_algo_eval=True)
+        src = self.create_data_source(is_algo_eval=True)
         assert self.cfg.num_final_gen_steps is not None
         # TODO: might be better to change total steps to total trajectories drawn
         src.do_sample_model_n_times(model, n_drawn, num_total=self.cfg.num_final_gen_steps * n_drawn)
@@ -221,8 +239,8 @@ class GFNTrainer:
     def train_batch(self, batch: gd.Batch, epoch_idx: int, batch_idx: int, train_it: int) -> dict[str, Any]:
         tick = time.time()
         self.model.train()
+        loss, info = self.algo.compute_batch_losses(self.model, batch)
         try:
-            loss, info = self.algo.compute_batch_losses(self.model, batch)
             if not torch.isfinite(loss):
                 raise ValueError("loss is not finite")
             step_info = self.step(loss)
@@ -275,7 +293,7 @@ class GFNTrainer:
             # the memory fragmentation or allocation keeps growing, how often should we clean up?
             # is changing the allocation strategy helpful?
 
-            if it % 16 == 0:
+            if it % 32 == 0:
                 gc.collect()
                 torch.cuda.empty_cache()
             epoch_idx = it // epoch_length
@@ -312,7 +330,8 @@ class GFNTrainer:
             logger.info(f"Generating final {num_final_gen_steps} batches ...")
             for it, batch in zip(
                 range(num_training_steps + 1, num_training_steps + num_final_gen_steps + 1),
-                cycle(final_dl), strict=False,
+                cycle(final_dl),
+                strict=False,
             ):
                 if hasattr(batch, "extra_info"):
                     for k, v in batch.extra_info.items():
@@ -364,10 +383,6 @@ class GFNTrainer:
             shutil.copy(fn, pathlib.Path(self.cfg.log_dir) / f"model_state_{it}.pt")
 
     def log(self, info, index, key):
-        if not hasattr(self, "_summary_writer"):
-            self._summary_writer = torch.utils.tensorboard.SummaryWriter(self.cfg.log_dir)
-        for k, v in info.items():
-            self._summary_writer.add_scalar(f"{key}_{k}", v, index)
         if wandb.run is not None:
             wandb.log({f"{key}_{k}": v for k, v in info.items()}, step=index)
 
@@ -377,5 +392,4 @@ class GFNTrainer:
 
 def cycle(it):
     while True:
-        for i in it:
-            yield i
+        yield from it

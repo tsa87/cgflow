@@ -9,7 +9,7 @@ command:
   - rebuttal-fm-schedule # group
   - ./logs/ana1-fm-time-schedule/ # storage
   - ./data/envs/stock # env dir
-  - ./data/LIT-PCBA/ # pocket dir
+  - ./data/test/LIT-PCBA/ # pocket dir
 
 method: grid
 parameters:

@@ -6,9 +6,10 @@ from rdkit import Chem
 from torch import Tensor
 
 from rxnflow.utils.misc import get_worker_env
+
+from synthflow.base.env_ctx_cgflow import SynthesisEnvContext3D_cgflow
 from synthflow.config import Config
 from synthflow.pocket_conditional.affinity import unidock_vina
-from synthflow.pocket_conditional.env import SynthesisEnvContext3D_pocket_conditional
 from synthflow.pocket_conditional.trainer import PocketConditionalTask, PocketConditionalTrainer
 from synthflow.utils.extract_pocket import get_mol_center
 
@@ -18,29 +19,33 @@ class UniDock_MultiPocket_Task(PocketConditionalTask):
 
     def __init__(self, cfg: Config):
         super().__init__(cfg)
-        self.root_pocket_dir = Path(cfg.task.pocket_conditional.pocket_dir)
-        self.pocket_pdb_to_files: dict[str, list[str]] = {}
+        self.root_protein_dir = Path(cfg.task.pocket_conditional.protein_dir)
+
+        # TODO: add protein db structure
+        self.pdb_to_pocket: dict[str, tuple[float, float, float]] = {}
         with open(cfg.task.pocket_conditional.train_key) as f:
             for ln in f.readlines():
-                filename, pocket_pdb_key = ln.strip().split(",")
-                self.pocket_pdb_to_files.setdefault(pocket_pdb_key, []).append(filename)
-        self.pocket_pdb_keys: list[str] = list(self.pocket_pdb_to_files.keys())
-        random.shuffle(self.pocket_pdb_keys)
+                pdb, x, y, z = ln.strip().split(",")
+                self.pdb_to_pocket[pdb] = (float(x), float(y), float(z))
+
+        self.pdb_keys: list[str] = sorted(list(self.pdb_to_pocket.keys()))
+        random.shuffle(self.pdb_keys)
 
         self.index_path = Path(cfg.log_dir) / "index.csv"
         self.search_mode: str = "fast"
 
     def sample_conditional_information(self, n: int, train_it: int) -> dict[str, Tensor]:
-        ctx: SynthesisEnvContext3D_pocket_conditional = get_worker_env("ctx")
+        ctx: SynthesisEnvContext3D_cgflow = get_worker_env("ctx")
         # set next pocket
-        pocket_pdb = self.pocket_pdb_keys[train_it % len(self.pocket_pdb_keys)]
-        pocket_filename = random.choice(self.pocket_pdb_to_files[pocket_pdb])
-        self.pocket_path = self.root_pocket_dir / pocket_filename
-        ctx.set_pocket(self.pocket_path)
-
+        pdb_code = self.pdb_keys[train_it % len(self.pdb_keys)]
+        protein_path = self.root_protein_dir / f"{pdb_code}.pdb"
+        center = self.pdb_to_pocket[pdb_code]
+        ctx.set_pocket(protein_path, center)
+        self.pocket_key = pdb_code
+        self.pocket_filename = protein_path
         # log what pocket is selected for each training iterations
         with open(self.index_path, "a") as w:
-            w.write(f"{self.oracle_idx},{pocket_filename}\n")
+            w.write(f"{self.oracle_idx},{pdb_code}\n")
         return super().sample_conditional_information(n, train_it)
 
     def calculate_affinity(self, mols: list[Chem.Mol]) -> Tensor:

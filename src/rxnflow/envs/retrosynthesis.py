@@ -5,8 +5,8 @@ from multiprocessing import Pool
 
 from rdkit import Chem
 
-from rxnflow.envs.action import Protocol, RxnAction, RxnActionType
-from rxnflow.envs.workflow import Workflow
+from .action import Protocol, RxnAction, RxnActionType
+from .workflow import Workflow
 
 
 class RetroSynthesisTree:

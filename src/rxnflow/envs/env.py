@@ -1,9 +1,7 @@
 from pathlib import Path
 
-import torch
 from rdkit import Chem, RDLogger
 from rdkit.Chem import Mol as RDMol
-from torch import Tensor
 
 from gflownet.envs.graph_building_env import Graph, GraphBuildingEnv
 
@@ -61,7 +59,11 @@ class SynthesisEnv(GraphBuildingEnv):
         self.env_dir = env_dir = Path(env_dir)
         workflow_config_path = env_dir / "workflow.yaml"
         block_smiles_dir = env_dir / "blocks"
-        block_feature_path = env_dir / "bb_feature.pt"
+
+        # NOTE: Load Protocol
+        self.workflow = Workflow(workflow_config_path)
+        self.protocols: list[Protocol] = self.workflow.protocols
+        self.protocol_dict: dict[str, Protocol] = {protocol.name: protocol for protocol in self.protocols}
 
         # NOTE: Load Building Blocks & Feature
         self.blocks: dict[str, list[str]] = {}
@@ -72,15 +74,8 @@ class SynthesisEnv(GraphBuildingEnv):
                 lines = f.readlines()
             self.blocks[key] = [ln.split()[0] for ln in lines]
             self.block_codes[key] = [ln.strip().split()[1] for ln in lines]
-
-        self.block_features: dict[str, tuple[Tensor, Tensor]] = torch.load(block_feature_path, weights_only=False)
         self.block_types = sorted(list(self.blocks.keys()))
         self.num_block_types = len(self.block_types)
-
-        # NOTE: Load Protocol
-        self.workflow = Workflow(workflow_config_path)
-        self.protocols: list[Protocol] = self.workflow.protocols
-        self.protocol_dict: dict[str, Protocol] = {protocol.name: protocol for protocol in self.protocols}
 
         self.retro_analyzer: RetroSyntheticAnalyzer = RetroSyntheticAnalyzer(self.blocks, self.workflow)
 

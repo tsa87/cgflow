@@ -75,18 +75,18 @@ class RxnFlowSampler:
 
     @torch.no_grad()
     def check_gfn_condition(self):
-        assert (
-            self.default_cfg.cond.temperature.sample_dist == self.cfg.cond.temperature.sample_dist
-        ), "It is not permitted to use different condition"
-        assert (
-            self.default_cfg.cond.temperature.dist_params == self.cfg.cond.temperature.dist_params
-        ), "It is not permitted to use different condition"
-        assert (
-            self.default_cfg.cond.focus_region.focus_type == self.cfg.cond.focus_region.focus_type
-        ), "It is not permitted to use different condition"
-        assert (
-            self.default_cfg.cond.weighted_prefs.preference_type == self.cfg.cond.weighted_prefs.preference_type
-        ), "It is not permitted to use different condition"
+        assert self.default_cfg.cond.temperature.sample_dist == self.cfg.cond.temperature.sample_dist, (
+            "It is not permitted to use different condition"
+        )
+        assert self.default_cfg.cond.temperature.dist_params == self.cfg.cond.temperature.dist_params, (
+            "It is not permitted to use different condition"
+        )
+        assert self.default_cfg.cond.focus_region.focus_type == self.cfg.cond.focus_region.focus_type, (
+            "It is not permitted to use different condition"
+        )
+        assert self.default_cfg.cond.weighted_prefs.preference_type == self.cfg.cond.weighted_prefs.preference_type, (
+            "It is not permitted to use different condition"
+        )
 
     @torch.no_grad()
     def update_temperature(self, sample_dist: str, dist_params: list[float]):

@@ -8,23 +8,22 @@ from rdkit.Chem import QED, Crippen, rdMolDescriptors
 from rdkit.Chem import Mol as RDMol
 from torch import Tensor
 
-from cgflow.utils.extract_pocket import get_mol_center
-from cgflow.utils.unidock import docking
 from rxnflow.base import BaseTask, RxnFlowTrainer
 from rxnflow.config import Config, init_empty
 from rxnflow.utils.chem_metrics import mol2qed, mol2sascore
+
+from synthflow.utils.extract_pocket import get_mol_center
+from synthflow.utils.unidock import docking
 
 aux_tasks = {"qed": mol2qed, "sa": mol2sascore}
 
 
 class VinaTask(BaseTask):
-
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.protein_path: Path = Path(cfg.task.docking.protein_path)
         x, y, z = get_mol_center(cfg.task.docking.ref_ligand_path)
-        self.center: tuple[float, float,
-                           float] = round(x, 3), round(y, 3), round(z, 3)
+        self.center: tuple[float, float, float] = round(x, 3), round(y, 3), round(z, 3)
         self.filter: str | None = cfg.task.constraint.rule
         self.ff_optimization: None | str = None  # None, UFF, MMFF
 
@@ -118,7 +117,6 @@ class VinaMOOTask(VinaTask):
         return flat_rewards
 
     def update_storage(self, mols: list[RDMol], scores: list[float]):
-
         def _filter(mol: RDMol) -> bool:
             """Check the object passes a property filter"""
             return QED.qed(mol) > 0.5

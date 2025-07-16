@@ -1,2 +1,1 @@
-from .api import CGFlowAPI
-from .cfg import CGFlowConfig
+from .api import CGFlowAPI, CGFlowOutput

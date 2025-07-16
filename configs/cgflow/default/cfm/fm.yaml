@@ -1,0 +1,25 @@
+_registry_: "cfm"
+_type_: MolecularCFM
+
+# cfm config
+use_ema: true
+self_condition: true
+
+# model training
+loss_fn: huber
+dist_loss_weight: 1.0
+
+lr: 0.0003
+lr_schedule: "constant"
+warmup_steps: 1000
+
+# sampling (for validation)
+inference_noise_std: 0.0
+sampling_steps: 50
+sampling_strategy: "linear"
+# metric (for validation)
+use_energy_metric: True # mmff energy
+use_complex_metric: false # pose-check
+
+# debug
+debug: false # if True, return trajectory

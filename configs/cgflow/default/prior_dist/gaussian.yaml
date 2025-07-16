@@ -1,0 +1,3 @@
+_registry_: "prior_distribution"
+_type_: GaussianPriorDistribution
+noise_std: 3.0

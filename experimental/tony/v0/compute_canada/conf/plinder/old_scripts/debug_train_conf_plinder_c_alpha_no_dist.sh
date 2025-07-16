@@ -1,0 +1,16 @@
+python semlaflow/train.py \
+    --data_path semlaflow/saved/data/plinder/smol \
+    --dataset plinder \
+    --dist_loss_weight 0. \
+    --type_loss_weight 0. \
+    --bond_loss_weight 0. \
+    --charge_loss_weight 0. \
+    --optimal_transport None  \
+    --categorical_strategy no-change \
+    --val_check_epochs 50 \
+    --monitor val-strain \
+    --monitor_mode min \
+    --n_training_mols 1 \
+    --d_message 64 \
+    --d_message_hidden 64 \
+    --c_alpha_only

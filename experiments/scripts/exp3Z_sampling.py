@@ -11,8 +11,8 @@ from tqdm import tqdm
 from synthflow.config import Config, init_empty
 from synthflow.pocket_conditional.sampler import PocketConditionalSampler
 
-POCKET_DIR = Path("./data/CrossDocked2020/")
-TEST_KEY_PATH = Path("./data/experiments/CrossDocked2020/test_keys.csv")
+PROTEIN_DIR = Path("/home/shwan/DATA/CrossDocked2020/protein/test/pdb/")
+TEST_KEY_PATH = Path("/home/shwan/DATA/CrossDocked2020/center_info/test.csv")
 
 
 def set_seed(seed: int):
@@ -26,45 +26,51 @@ def set_seed(seed: int):
 
 
 if __name__ == "__main__":
-    temperature = [16.0, 64.0]
-    # ckpt_path = "./logs/exp3-pocket_conditional/localopt-fm100-sr10/model_state_5000.pt"
-    # save_path = Path("./result/localopt-fm100-sr10/5k-u32/")
-    # ckpt_path = "./logs/exp3-pocket_conditional/proxy-fm100-sr10/model_state_12000.pt"
-    ckpt_path = "./weights/sbdd-stock-zincdock/model_state_16000.pt"
+    temperature = [16.0, 48.0]
+    ckpt_path = "./logs/camera-ready-multipocket/sbdd_proxy-bs32/model_state_10000.pt"
+    save_path = "./result/camera-ready/crossdock-proxy/bs32-10k-bs50-u16-32/"
+    # save_path = "./result/camera-ready/crossdock-proxy/speed_check/"
 
-    save_path = Path("./result/service/zincdock-proxy/16k-u16/")
-    print(ckpt_path)
-    print(save_path)
-
+    test_keys: list[tuple[str, tuple[float, float, float]]] = []
     with open(TEST_KEY_PATH) as f:
-        test_keys = [line.strip().split(",") for line in f.readlines()]
+        for line in f.readlines():
+            pdb_key, x, y, z = line.strip().split(",")
+            test_keys.append((pdb_key, (float(x), float(y), float(z))))
+
     st, end = int(sys.argv[1]), int(sys.argv[2])
     test_keys = test_keys[st:end]
 
     # NOTE: Create sampler
     config = init_empty(Config())
-    config.cgflow.ckpt_path = "../weights/crossdocked2020_till_end.ckpt"
+    config.cgflow.ckpt_path = "../weights/final/crossdock_epoch28.ckpt"
     config.algo.action_subsampling.sampling_ratio = 0.1
-    config.algo.num_from_policy = 100  # batch size
+    config.algo.num_from_policy = 50  # batch size
     device = "cuda"
     sampler = PocketConditionalSampler(config, ckpt_path, device)
     sampler.update_temperature("uniform", temperature)
 
     # NOTE: Run
+    save_path = Path(save_path)
     smiles_path = save_path / "smiles"
     pose_path = save_path / "pose"
     save_path.mkdir(exist_ok=True, parents=True)
     smiles_path.mkdir(exist_ok=True)
     pose_path.mkdir(exist_ok=True)
-    runtime = []
 
-    for name, key in tqdm(test_keys):
+    runtime: list[float] = []
+    runtime_only: list[float] = []
+
+    for key, center in tqdm(test_keys):
         set_seed(1)
-        pocket_path = POCKET_DIR / name
+        protein_path = PROTEIN_DIR / f"{key}.pdb"
 
-        st = time.time()
-        res = sampler.sample_against_pocket(pocket_path, 100)
-        runtime.append(time.time() - st)
+        tick1 = time.time()
+        sampler.set_pocket(protein_path, center)
+        tick2 = time.time()
+        res = sampler.sample(100)
+        end = time.time()
+        runtime.append(end - tick1)
+        runtime_only.append(end - tick2)
 
         with open(smiles_path / f"{key}.csv", "w") as w:
             w.write(",SMILES\n")
@@ -80,3 +86,4 @@ if __name__ == "__main__":
                 w.write(mol)
 
     print("avg time", np.mean(runtime))
+    print("avg time(ony sampling)", np.mean(runtime_only))

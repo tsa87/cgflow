@@ -5,7 +5,7 @@ import py3Dmol
 from rdkit import Chem
 from rdkit.Chem import Mol as RDMol
 
-from cgflow.util.pocket import ProteinPocket
+from cgflow.util.data.pocket import ProteinPocket
 
 
 def mol_to_3dview(mol, size=(300, 300), style="stick", surface=False, opacity=0.5, scale=1.0):

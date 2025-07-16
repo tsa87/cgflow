@@ -1,29 +1,30 @@
 import socket
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 import torch
 import torch_geometric.data as gd
 import wandb
 from omegaconf import OmegaConf
 
-from gflownet.algo.config import Backward
-from gflownet.utils.multiobjective_hooks import MultiObjectiveStatsHook
+from gflownet.algo.config import Backward, LossFN
+from gflownet.online_trainer import StandardOnlineTrainer
 from rxnflow.algo.trajectory_balance import SynthesisTB
 from rxnflow.config import Config
 from rxnflow.envs import SynthesisEnv, SynthesisEnvContext
 from rxnflow.models.gfn import RxnFlow
 from rxnflow.utils.misc import set_worker_env
 
-from .gflownet.online_trainer import CustomStandardOnlineTrainer
 from .task import BaseTask
 
+BaseTaskT = TypeVar("BaseTaskT", bound=BaseTask)
 
-class RxnFlowTrainer(CustomStandardOnlineTrainer):
+
+class RxnFlowTrainer(StandardOnlineTrainer, Generic[BaseTaskT]):
     cfg: Config
     env: SynthesisEnv
     ctx: SynthesisEnvContext
-    task: BaseTask
+    task: BaseTaskT
     algo: SynthesisTB
     model: RxnFlow
     sampling_model: RxnFlow
@@ -36,19 +37,21 @@ class RxnFlowTrainer(CustomStandardOnlineTrainer):
         base.hostname = socket.gethostname()
         base.algo.illegal_action_logreward = -75
 
-        base.opt.weight_decay = 1e-8
+        base.opt.opt = "adam"
+        base.opt.weight_decay = 1e-6
         base.opt.momentum = 0.9
-        base.opt.adam_eps = 1e-8
+        base.opt.eps = 1e-8
         base.opt.lr_decay = 20_000
         base.opt.clip_grad_type = "norm"
         base.opt.clip_grad_param = 10
+        base.algo.tb.Z_learning_rate = 1e-3
+        base.algo.tb.Z_lr_decay = 50_000
 
+        # Online Training Parameters
         base.algo.num_from_policy = 64
         base.algo.sampling_tau = 0.9
         base.algo.tb.epsilon = None
         base.algo.tb.bootstrap_own_reward = False
-        base.algo.tb.Z_learning_rate = 1e-3
-        base.algo.tb.Z_lr_decay = 50_000
 
         # RxnFlow model
         base.model.num_emb = 128
@@ -65,15 +68,14 @@ class RxnFlowTrainer(CustomStandardOnlineTrainer):
         # Required Settings for RxnFlow
         base.num_workers = 0
         base.algo.method = "TB"
-        base.algo.tb.do_sample_p_b = False
-        base.algo.tb.do_parameterize_p_b = False
+        base.algo.tb.loss_fn = LossFN.MSE
         base.algo.tb.backward_policy = Backward.Free  # NOTE: custom fixed policy of rxnflow
 
         # Online Training Parameters
         base.algo.train_random_action_prob = 0.05  # suggest to set positive value
-        base.validate_every = 0
         base.algo.num_from_policy = 64
         base.algo.valid_num_from_policy = 0
+        base.validate_every = 0
 
     def setup(self):
         self.cfg.cond.moo.num_objectives = len(self.cfg.task.moo.objectives)
@@ -85,18 +87,6 @@ class RxnFlowTrainer(CustomStandardOnlineTrainer):
 
         # setup multi-objective optimization
         self.is_moo: bool = self.task.is_moo
-        if self.is_moo:
-            if self.cfg.task.moo.online_pareto_front:
-                hook = MultiObjectiveStatsHook(
-                    256,
-                    self.cfg.log_dir,
-                    compute_igd=True,
-                    compute_pc_entropy=True,
-                    compute_focus_accuracy=True if self.cfg.cond.focus_region.focus_type is not None else False,
-                    focus_cosim=self.cfg.cond.focus_region.focus_cosim,
-                )
-                self.sampling_hooks.append(hook)
-                self.to_terminate.append(hook.terminate)
 
         set_worker_env("trainer", self)
         set_worker_env("env", self.env)
@@ -115,12 +105,7 @@ class RxnFlowTrainer(CustomStandardOnlineTrainer):
         self.algo = SynthesisTB(self.env, self.ctx, self.cfg)
 
     def setup_model(self):
-        self.model = RxnFlow(
-            self.ctx,
-            self.cfg,
-            do_bck=self.cfg.algo.tb.do_parameterize_p_b,
-            num_graph_out=self.cfg.algo.tb.do_predict_n + 1,
-        )
+        self.model = RxnFlow(self.ctx, self.cfg)
 
     def load_checkpoint(self, checkpoint_path: str | Path, load_ema: bool = False):
         state = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
@@ -140,7 +125,8 @@ class RxnFlowTrainer(CustomStandardOnlineTrainer):
 
     def terminate(self):
         super().terminate()
-        self.algo.graph_sampler.terminate()
+        if hasattr(self, "algo"):
+            self.algo.graph_sampler.terminate()
         if wandb.run is not None:
             wandb.finish()
 

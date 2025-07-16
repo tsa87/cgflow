@@ -19,7 +19,7 @@ class Graph(nx.Graph):
         return repr(self)
 
     def __repr__(self):
-        return f'<{list(self.nodes)}, {list(self.edges)}, {list(self.nodes[i]["v"] for i in self.nodes)}>'
+        return f"<{list(self.nodes)}, {list(self.edges)}, {list(self.nodes[i]['v'] for i in self.nodes)}>"
 
     def bridges(self):
         return list(nx.bridges(self))
@@ -728,7 +728,10 @@ class GraphActionCategorical:
         exp_vals = [(i - maxl[b, None]).exp().clamp(self._epsilon) for i, b in zip(x, self.batch, strict=False)]
         # sum corrected exponentiated _masked_logits, to get log(Z - max) = log(sum(exp(_masked_logits)) - max)
         reduction = sum(
-            [scatter(i, b, dim=0, dim_size=self.num_graphs, reduce="sum").sum(1) for i, b in zip(exp_vals, self.batch, strict=False)]
+            [
+                scatter(i, b, dim=0, dim_size=self.num_graphs, reduce="sum").sum(1)
+                for i, b in zip(exp_vals, self.batch, strict=False)
+            ]
         ).log()
         # Add back max
         return reduction + maxl
@@ -790,7 +793,10 @@ class GraphActionCategorical:
         # so we get (minibatch_size,)
         col_max = [values.max(1) for values, idx in mnb_max]
         # Now we look up which row in those argmax cols was the max:
-        row_pos = [idx_mnb[torch.arange(len(idx_col)), idx_col] for (_, idx_mnb), (_, idx_col) in zip(mnb_max, col_max, strict=False)]
+        row_pos = [
+            idx_mnb[torch.arange(len(idx_col)), idx_col]
+            for (_, idx_mnb), (_, idx_col) in zip(mnb_max, col_max, strict=False)
+        ]
         # The maxes themselves
         maxs = [values for values, idx in col_max]
         # Now we need to check which type of logit has the actual max

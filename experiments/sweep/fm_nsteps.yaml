@@ -9,14 +9,14 @@ command:
   - rebuttal-fm-nsteps # group
   - ./logs/ana2-fm-nsteps/ # storage
   - ./data/envs/stock/ # env dir
-  - ./data/experiments/LIT-PCBA/ # pocket dir
-  - ../weights/crossdocked2020_till_end.ckpt # ckpt
+  - ./data/test/LIT-PCBA/ # pocket dir
+  - ../weights/final/crossdock_epoch28.ckpt # ckpt
 
 method: grid
 parameters:
   protein:
     value: ALDH1
   seed:
-    values: [0, 1, 2, 3]
+    values: [0, 1, 2]
   num_inference_steps:
-    values: [10, 20, 40, 60, 80, 100]
+    values: [10, 20, 40, 60, 80]

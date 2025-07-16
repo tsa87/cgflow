@@ -1,0 +1,26 @@
+# save dir
+name: unif_1_64
+result_dir: "./result/multi_pocket/tacogfn_zincdock"
+
+# pocket conditional proxy
+proxy: ['TacoGFN_Reward', 'QVina', 'ZINCDock15M'] # ZINCDock15M or CrossDock2020
+protein_dir: "./data/experiments/CrossDocked2020/protein/train/"
+train_key_path: "./data/experiments/CrossDocked2020/center_info/train.csv"
+
+# environment
+env_dir: ./data/envs/enamine_stock
+max_atoms: 40 # maximum atom counts
+subsampling_ratio: 0.1 # Memory-variance trade-off
+
+# opt
+num_steps: 100_000
+num_sampling_per_step: 32
+temperature: [1, 64] # uniform(1, 64)
+seed: 1
+
+# pose prediction
+pose_model: "./weights/cgflow_crossdock.ckpt"
+pose_steps: 20
+
+# extras
+random_action_prob: 0.2

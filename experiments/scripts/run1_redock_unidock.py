@@ -13,7 +13,7 @@ def main():
     env_dir = sys.argv[3]
     pocket_dir = sys.argv[4]
     ckpt_path = sys.argv[5]
-    target  = sys.argv[6]
+    target = sys.argv[6]
     seed = sys.argv[7]
     num_inference_steps = sys.argv[8]
 
