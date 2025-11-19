@@ -161,7 +161,7 @@ experiments/logs/*
 experiments/wandb/*
 logs/*
 wandb/*
-src/app/*
+{% comment %} src/app/* {% endcomment %}
 data/*.sdf
 data/*.zip
 docking_pipeline/*
