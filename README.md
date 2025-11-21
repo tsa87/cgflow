@@ -101,7 +101,7 @@ In this setting, we directly using the final predicted pose from pose prediction
 
 ### 2. Zero-shot Pocket-conditional Generation
 
-Please refer to the [notebook](src/app/test/sbdd_sample.ipynb) for example code for zero-shot pocket-conditional generation. You can download the pretrained model weights from [here](https://drive.google.com/drive/folders/1gBz-xTw6gf5nwjcB4ZPX63Y4ebGoSWkU?usp=sharing).
+Please refer to the `experiments/scripts/exp3Z_sampling.py` for example code for zero-shot pocket-conditional generation. You can download the pretrained model weights from [here](https://drive.google.com/drive/folders/1gBz-xTw6gf5nwjcB4ZPX63Y4ebGoSWkU?usp=sharing).
 
 You can swap the pose prediction model weights to either `crossdocked2020_till_end.ckpt` which is trained on CrossDock2020 or `plinder_till_end.ckpt` which is trained on Plinder.
 
