@@ -105,10 +105,10 @@ Here is the evaluation code for zero-shot pocket-conditional generation.
 python experiments/scripts/exp3Z_sampling.py
 ```
 Please replace the variables from the script to your path:
-- config.cgflow.ckpt_path: 3DSynthFlow model weights - `3dsynthflow_tacogfn.ckpt` in Google Drive.
-- ckpt_path: Pose prediction model weights - `crossdocked2020_till_end.ckpt` in Google Drive.
-- PROTEIN_DIR/TEST_KEY_PATH: The proteins to test.
-- save_path: The path for output results. 
+- `config.cgflow.ckpt_path`: 3DSynthFlow model weights - `3dsynthflow_tacogfn.ckpt` in Google Drive.
+- `ckpt_path`: Pose prediction model weights - `crossdocked2020_till_end.ckpt` in Google Drive.
+- `PROTEIN_DIR/TEST_KEY_PATH`: The proteins to test.
+- `save_path`: The path for output results. 
   
 You can download the pretrained model weights from [here](https://drive.google.com/drive/folders/1gBz-xTw6gf5nwjcB4ZPX63Y4ebGoSWkU?usp=sharing).
   
