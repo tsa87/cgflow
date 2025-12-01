@@ -100,11 +100,18 @@ python scripts/opt/opt_vina.py --config ./configs/opt/aldh1_vina.yaml
 In this setting, we directly using the final predicted pose from pose prediction model and use "local-opt" setting from AutoDock Vina to compute the reward.
 
 ### 2. Zero-shot Pocket-conditional Generation
-
-Please refer to the `experiments/scripts/exp3Z_sampling.py` for example code for zero-shot pocket-conditional generation. You can download the pretrained model weights from [here](https://drive.google.com/drive/folders/1gBz-xTw6gf5nwjcB4ZPX63Y4ebGoSWkU?usp=sharing).
-
-You can swap the pose prediction model weights to either `crossdocked2020_till_end.ckpt` which is trained on CrossDock2020 or `plinder_till_end.ckpt` which is trained on Plinder.
-
+Here is the evaluation code for zero-shot pocket-conditional generation.
+```bash
+python experiments/scripts/exp3Z_sampling.py
+```
+Please replace the variables from the script to your path:
+- config.cgflow.ckpt_path: 3DSynthFlow model weights - `3dsynthflow_tacogfn.ckpt` in Google Drive.
+- ckpt_path: Pose prediction model weights - `crossdocked2020_till_end.ckpt` in Google Drive.
+- PROTEIN_DIR/TEST_KEY_PATH: The proteins to test.
+- save_path: The path for output results. 
+  
+You can download the pretrained model weights from [here](https://drive.google.com/drive/folders/1gBz-xTw6gf5nwjcB4ZPX63Y4ebGoSWkU?usp=sharing).
+  
 ### 3. Fine-tuning the pocket-conditional model
 
 TBA
