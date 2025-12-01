@@ -58,7 +58,7 @@ class TrajectoryBalance(GFNAlgorithm):
         self.env = env
         self.global_cfg = cfg
         self.cfg = cfg.algo.tb
-        self.max_nodes = cfg.algo.max_nodes
+        self.max_nodes = 9
         self.max_len = cfg.algo.max_len
         self.length_normalize_losses = cfg.algo.tb.do_length_normalize
 
