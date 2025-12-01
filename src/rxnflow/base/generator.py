@@ -141,7 +141,7 @@ class RxnFlowSampler:
         self.ctx = SynthesisEnvContext(self.env, num_cond_dim=self.task.num_cond_dim)
 
     def setup_model(self):
-        self.model = RxnFlow(self.ctx, self.cfg, do_bck=False, num_graph_out=self.cfg.algo.tb.do_predict_n + 1)
+        self.model = RxnFlow(self.ctx, self.cfg)
 
     def setup_algo(self):
         assert self.cfg.algo.method == "TB"

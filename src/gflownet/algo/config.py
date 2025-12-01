@@ -2,6 +2,25 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 
 
+class TBVariant(IntEnum):
+    """The Trajectory Balance variant to use."""
+
+    TB = 0
+    SubTB = 1
+    DB = 2
+
+
+class NLoss(IntEnum):
+    """See algo.trajectory_balance.TrajectoryBalance for details."""
+
+    none = 0
+    Transition = 1
+    SubTB1 = 2
+    TermTB1 = 3
+    StartTB1 = 4
+    TB = 5
+
+
 class Backward(IntEnum):
     """
     See algo.trajectory_balance.TrajectoryBalance for details.
