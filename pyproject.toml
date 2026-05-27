@@ -30,7 +30,7 @@ dependencies = [
   # cheminfo&bioinfo
   "rdkit",
   "biopython",
-  "openbabel-wheel",
+  "openbabel>=3.2.0",
   "biotite==1.0.1",
   # additional
   "gitpython",
